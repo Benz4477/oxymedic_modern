@@ -75,3 +75,14 @@ backend/uploads/
 # Spécifique au backend
 backend/uploads/
 backend/logs/
+backend/node_modules/
+backend/.env
+backend/.env.*
+backend/package-lock.json
+backend/.env.example
+client/
+client/node_modules/
+client/.env
+client/.env.*
+client/package-lock.json
+client/.env.example
