@@ -1,0 +1,38 @@
+{
+  "name": "oxymedic-gestion-pro",
+  "version": "1.0.0",
+  "description": "OXYMEDIC Gestion Pro - Application de gestion de location de matériel médical",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "backend": "cd backend && npm run dev",
+    "install-all": "npm install && cd backend && npm install"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "axios": "^1.15.2",
+    "jsbarcode": "^3.12.3",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^6.8.0",
+    "tailwindcss": "^4.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.10"
+  },
+  "keywords": [
+    "medical",
+    "rental",
+    "management",
+    "casablanca"
+  ],
+  "author": "OXYMEDIC",
+  "license": "MIT"
+}
