@@ -15,6 +15,7 @@ const categorySchema = new mongoose.Schema(
     name: { type: String, required: true, unique: true, trim: true },
     color: { type: String, required: true, default: "#16A34A" },
     desc: { type: String, default: "" }, // optionnel
+    status: { type: String, required: true, default: "actif", enum: ["actif", "inactif"] }, // statut de la catégorie
     subcats: [subcatSchema], // tableau de sous‑catégories
   },
   {

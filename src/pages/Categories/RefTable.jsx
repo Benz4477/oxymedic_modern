@@ -31,8 +31,8 @@ const RefTable = ({ equipements }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {equipements.map((eq) => (
-              <tr key={eq.id} className="hover:bg-slate-50/70 cursor-pointer">
+            {equipements.map((eq, index) => (
+              <tr key={eq.id || `eq-${index}`} className="hover:bg-slate-50/70 cursor-pointer">
                 <td className="px-4 py-3 font-mono text-xs text-purple-600">
                   {eq.ref || "—"}
                 </td>
@@ -44,7 +44,7 @@ const RefTable = ({ equipements }) => {
                   {eq.stock}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-emerald-700">
-                  {eq.price.toLocaleString()} MAD
+                  {eq.price ? eq.price.toLocaleString() : "0"} MAD
                 </td>
               </tr>
             ))}

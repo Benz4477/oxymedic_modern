@@ -29,6 +29,7 @@ const Categories = () => {
     createCategory,
     updateCategory,
     deleteCategory,
+    toggleCategoryStatus,
     addSubcategory,
     updateSubcategory,
     deleteSubcategory,
@@ -319,6 +320,7 @@ const Categories = () => {
           onEditCategory={openEditCategory}
           onDeleteCategory={handleDeleteCategory}
           onAddSubcategory={openAddSubcat}
+          onToggleStatus={toggleCategoryStatus}
         />
       )}
 

@@ -58,7 +58,7 @@ const LoginScreen = () => {
         {/* Logo */}
         <div className="flex flex-col items-center justify-center mb-6">
           <img
-            src="/Logo.png"
+            src="/Logo1.png"
             alt="OXYMEDIC"
             className="w-28 h-28 object-contain"
           />

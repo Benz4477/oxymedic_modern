@@ -201,8 +201,7 @@ class CategoryService {
   }
 
   static calculateKPIs(categories, equipements) {
-    // Le modèle Category n'a pas de champ "status", donc on considère toutes comme actives
-    const totalCats = categories.length;
+    const totalCats = categories.filter(cat => cat.status === "actif").length;
     const totalEquips = equipements.length;
     const withRef = equipements.filter((e) => e.ref && e.ref.trim()).length;
     const withoutRef = totalEquips - withRef;

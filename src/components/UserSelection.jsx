@@ -30,11 +30,11 @@ const UserSelection = () => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4">
-      <div className="max-w-md w-full p-8">
+      <div className="w-full p-8">
         {/* Logo & Brand */}
         <div className="flex flex-col items-center justify-center mb-6">
           <img
-            src="/Logo.png"
+            src="/Logo1.png"
             alt="OXYMEDIC"
             className="w-28 h-28 object-contain"
           />
@@ -55,7 +55,7 @@ const UserSelection = () => {
         </div>
 
         {/* Grille des utilisateurs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 max-w-2xl mx-auto">
           {users.map((user) => (
             <button
               key={user.id}

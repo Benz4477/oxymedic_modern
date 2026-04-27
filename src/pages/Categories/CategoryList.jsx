@@ -9,6 +9,7 @@ const CategoryList = ({
   onEditCategory,
   onDeleteCategory,
   onAddSubcategory,
+  onToggleStatus,
 }) => {
   const filteredCategories = categories.filter(
     (cat) =>
@@ -93,7 +94,11 @@ const CategoryList = ({
                   {cat.desc}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <StatusBadge status={cat.status} />
+                  <StatusBadge 
+                    status={cat.status} 
+                    onClick={() => onToggleStatus(cat.id)}
+                    clickable={true}
+                  />
                 </td>
                 <td className="px-4 py-3 text-center">
                   <div className="flex justify-center gap-1">

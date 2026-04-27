@@ -8,20 +8,23 @@ const unitSchema = new mongoose.Schema(
       unique: true,
     },
     equipId: {
-      type: Number,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Equipement",
       required: true,
     },
     serial: {
       type: String,
       required: true,
+      unique: true,
     },
     barcode: {
       type: String,
       required: true,
+      unique: true,
     },
     status: {
       type: String,
-      enum: ["available", "rented"],
+      enum: ["available", "rented", "maintenance", "retired"],
       default: "available",
     },
     clientId: {
@@ -40,6 +43,10 @@ const unitSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    archived: {
+      type: Boolean,
+      default: false,
     },
   },
   {

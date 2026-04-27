@@ -15,8 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients/Clients";
 import CRM from "./pages/CRM";
 import Pipeline from "./pages/Pipeline";
-import Devis from "./pages/Devis";
-import Commandes from "./pages/Commandes";
+import Devis from "./pages/Devis/Devis";
 import Fidelite from "./pages/Fidelite";
 import Agenda from "./pages/Agenda";
 import Disponibilite from "./pages/Disponibilite";
@@ -26,13 +25,12 @@ import Cautions from "./pages/Cautions";
 import Livraisons from "./pages/Livraisons";
 import Livreurs from "./pages/Livreurs";
 import Stock from "./pages/Stock";
-import Serials from "./pages/Serials";
+import Serials from "./pages/Serials/Serials";
 import Consommables from "./pages/Consommables";
-import Facturation from "./pages/Facturation";
+import Facturation from "./pages/Facturation/Facturation";
 import Paiements from "./pages/Paiements";
 import Catalogue from "./pages/Produits";
 import ProdList from "./pages/Parametres";
-import Categories from "./pages/Categories";
 import Scanner from "./pages/Scanner";
 import Analytics from "./pages/Analytics";
 import SAV from "./pages/SAV";
@@ -40,6 +38,8 @@ import Maintenance from "./pages/Maintenance";
 import Apparence from "./pages/Apparence";
 import Access from "./pages/DroitsAcces";
 import Users from "./pages/Users";
+import Categories from "./pages/Categories/Categories";
+import Commandes from "./pages/Commandes/Commandes";
 
 // Constante pour les routes de l'application (sous /app)
 const appRoutes = [
@@ -49,7 +49,7 @@ const appRoutes = [
   { path: "crm", element: <CRM /> },
   { path: "pipeline", element: <Pipeline /> },
   { path: "devis", element: <Devis /> },
-  { path: "commandes", element: <Commandes /> },
+  { path: "commandes", element: <Commandes/> },
   { path: "fidelite", element: <Fidelite /> },
   { path: "agenda", element: <Agenda /> },
   { path: "disponibilite", element: <Disponibilite /> },

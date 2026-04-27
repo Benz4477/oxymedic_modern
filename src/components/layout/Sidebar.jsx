@@ -58,7 +58,7 @@ const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
         {/* Header avec logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
           <img
-            src="/Logo.png"
+            src="/Logo1.png"
             alt="OXYMEDIC"
             className="w-20 h-20 object-contain"
           />

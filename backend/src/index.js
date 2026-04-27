@@ -6,6 +6,8 @@ import compression from "compression";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import { body, param, query, validationResult } from "express-validator";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import connectDB from "./config/db.js";
 
 // Import des routes
@@ -36,8 +38,18 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Servir les fichiers uploadés statiquement
-app.use("/uploads", express.static("uploads"));
+// Servir les fichiers uploadés statiquement avec CORS
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.use("/uploads", cors({
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:3002",
+  ],
+  credentials: true,
+}), express.static(join(__dirname, "../uploads")));
 
 // Middleware de sécurité
 app.use(

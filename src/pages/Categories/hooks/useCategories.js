@@ -32,6 +32,25 @@ export const useCategories = () => {
     }
   };
 
+  // ── Changement de statut ──
+  const toggleCategoryStatus = async (id) => {
+    try {
+      const category = categories.find(cat => cat.id === id);
+      if (!category) throw new Error("Catégorie non trouvée");
+      
+      const newStatus = category.status === "actif" ? "inactif" : "actif";
+      const updatedCategory = await CategoryService.updateCategory(id, { status: newStatus });
+      
+      setCategories(
+        categories.map((cat) => (cat.id === id ? { ...cat, status: newStatus } : cat)),
+      );
+      return updatedCategory;
+    } catch (err) {
+      console.error("Erreur lors du changement de statut:", err);
+      throw err;
+    }
+  };
+
   // ── Opérations CRUD ──
   const createCategory = async (categoryData) => {
     try {
@@ -203,6 +222,9 @@ export const useCategories = () => {
     createCategory,
     updateCategory,
     deleteCategory,
+
+    // Changement de statut
+    toggleCategoryStatus,
 
     // Sous-catégories
     addSubcategory,
