@@ -4,15 +4,15 @@ import mongoose from "mongoose";
 const ligneFactureSchema = new mongoose.Schema({
   description: { type: String, required: true, trim: true },
   quantite: { type: Number, required: true, min: 1, default: 1 },
-  prixHT: { type: Number, required: true, min: 0 },        // prix unitaire hors taxe
-  totalHT: { type: Number, required: true, min: 0 },      // total HT = quantite * prixHT
-  tvaRate: { type: Number, default: 20 },                 // TVA % pour cette ligne
-  remPct: { type: Number, default: 0 },                   // remise % sur la ligne
+  prixHT: { type: Number, required: true, min: 0 },
+  totalHT: { type: Number, required: true, min: 0 },
+  tvaRate: { type: Number, default: 20 },
+  remPct: { type: Number, default: 0 },
 }, { _id: false });
 
 const factureSchema = new mongoose.Schema({
   // Identifiants
-  num: { type: String, required: true, unique: true, uppercase: true },  // ex: FAC-2024-001
+  num: { type: String, required: true, unique: true, uppercase: true },
   type: {
     type: String,
     required: true,
@@ -27,28 +27,36 @@ const factureSchema = new mongoose.Schema({
   },
 
   // Liens
-  clientId: { type: Number, default: 1 },        // référence au client (généré automatiquement)
-  cmdRef: { type: String, default: "" },        // commande liée
-  livId: { type: Number, default: null },       // livraison liée
-  devisId: { type: String, default: "" },       // devis source
+  clientId: { type: Number, default: 1 },
+  clientNom: { type: String, default: "" },      // Ajouté pour stocker le nom du client
+  clientEmail: { type: String, default: "" },    // Ajouté
+  clientAdresse: { type: String, default: "" },  // Ajouté
+  cmdRef: { type: String, default: "" },
+  livId: { type: Number, default: null },
+  devisId: { type: String, default: "" },
 
   // Dates
-  date: { type: String, required: true },       // format DD/MM/YYYY
-  dateEcheance: { type: String, default: "" },  // format DD/MM/YYYY
+  date: { type: String, required: true },
+  dateEcheance: { type: String, default: "" },
 
   // Financier
   lignes: [ligneFactureSchema],
-  remiseGlobale: { type: Number, default: 0 },  // remise globale en pourcentage
-  tvaGlobale: { type: Number, default: 20 },    // TVA par défaut (si lignes sans tvaRate)
+  remiseGlobale: { type: Number, default: 0 },
+  tvaGlobale: { type: Number, default: 20 },
   montantHT: { type: Number, default: 0 },
   montantTVA: { type: Number, default: 0 },
   montantTTC: { type: Number, required: true, default: 0 },
   montantPaye: { type: Number, default: 0 },
   montantRestant: { type: Number, default: 0 },
 
-  // Paiement
-  modePaiement: { type: String, enum: ["espece", "virement", "cheque", "carte", "autre"], default: null },
-  datePaiement: { type: String, default: "" },  // format DD/MM/YYYY
+  // Paiement – CORRECTION ICI
+  modePaiement: { 
+    type: String, 
+    enum: ["espece", "virement", "cheque", "carte", "autre"],
+    required: false,        // ← pas obligatoire
+    default: undefined      // ← pas de valeur par défaut
+  },
+  datePaiement: { type: String, default: "" },
 
   // Documents
   notes: { type: String, default: "" },
@@ -56,7 +64,7 @@ const factureSchema = new mongoose.Schema({
   archived: { type: Boolean, default: false },
 
   // Audit
-  createdBy: { type: String, default: "" },     // nom de l'utilisateur
+  createdBy: { type: String, default: "" },
 }, {
   timestamps: true,
 });
@@ -75,7 +83,6 @@ factureSchema.pre("save", function(next) {
     totalTVA += htApresRemise * tvaRate / 100;
   });
 
-  // Appliquer remise globale
   if (this.remiseGlobale > 0) {
     totalHT = totalHT * (1 - this.remiseGlobale / 100);
     totalTVA = totalTVA * (1 - this.remiseGlobale / 100);

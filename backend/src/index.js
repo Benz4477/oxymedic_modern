@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
@@ -43,11 +43,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 app.use("/uploads", cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001", 
-    "http://localhost:3002",
-  ],
+ origin: [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://192.168.11.233:3000",
+],
   credentials: true,
 }), express.static(join(__dirname, "../uploads")));
 
@@ -66,8 +67,9 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://192.168.11.233:3000",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
@@ -165,3 +167,4 @@ app.listen(PORT, () => {
 });
 
 export default app;
+

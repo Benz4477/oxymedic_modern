@@ -1,0 +1,90 @@
+# Variables d'environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+backend/.env.local
+
+# Dépendances
+node_modules/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs
+*.log
+
+# Build et production
+/build
+/dist
+/.next/
+/out/
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Tests
+coverage/
+.nyc_output/
+test-*.js
+test-*.cjs
+cleanup-*.js
+
+# Documentation temporaire
+CLOUDINARY_SETUP.md
+IMAGE_UPLOAD_SOLUTION.md
+
+# Fichiers temporaires
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# IDE et éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Uploads et médias (backend et frontend)
+uploads/
+backend/uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.pdf
+
+# Base de données locale
+*.db
+*.sqlite
+*.sqlite3
+
+# Lock files (optionnel - selon préférence)
+# package-lock.json
+# yarn.lock
+
+# Spécifique au backend
+backend/uploads/
+backend/logs/
+backend/node_modules/
+backend/.env
+backend/.env.*
+backend/package-lock.json
+backend/.env.example
+client/node_modules/
+client/.env
+client/.env.*
+client/package-lock.json
+client/.env.examplea
+!client/src/
+!client/src/**/*
+!client/public/

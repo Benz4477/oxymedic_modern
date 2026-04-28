@@ -76,12 +76,7 @@ export const authorize = (...roles) => {
 // Autorisation par module
 export const authorizeModule = (module) => {
   return (req, res, next) => {
-    console.log(`=== AUTHORIZE MODULE: ${module} ===`);
-    console.log("Utilisateur:", req.user);
-    console.log("Permissions:", req.user.permissions);
-    
     if (!req.user) {
-      console.log("ERREUR: Utilisateur non connecté");
       return res.status(401).json({
         success: false,
         message: "Accès non autorisé",
@@ -90,20 +85,17 @@ export const authorizeModule = (module) => {
 
     // Admin a accès à tout
     if (req.user.role === "admin") {
-      console.log("Admin autorisé");
       return next();
     }
 
     // Vérifier la permission pour le module spécifique
     if (!req.user.permissions || !req.user.permissions[module]) {
-      console.log(`ERREUR: Permission manquante pour module ${module}`);
       return res.status(403).json({
         success: false,
         message: `Accès refusé - Vous n'avez pas les permissions pour le module ${module}`,
       });
     }
 
-    console.log("Autorisation accordée");
     next();
   };
 };

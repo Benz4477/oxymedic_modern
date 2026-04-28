@@ -80,9 +80,12 @@ backend/.env
 backend/.env.*
 backend/package-lock.json
 backend/.env.example
-client/
+!client/
 client/node_modules/
 client/.env
 client/.env.*
 client/package-lock.json
 client/.env.examplea
+!client/src/
+!client/src/**/*
+!client/public/

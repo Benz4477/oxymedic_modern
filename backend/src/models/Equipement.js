@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 const equipementSchema = new mongoose.Schema(
   {
     // Identification
-    icon: { type: String, default: "🏥" },
     name: { type: String, required: true },
     cat: { type: String, required: true }, // catégorie principale
     subcat: { type: String, default: "" }, // sous‑catégorie (optionnel)
