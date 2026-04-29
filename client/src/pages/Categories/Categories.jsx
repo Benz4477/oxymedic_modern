@@ -9,6 +9,7 @@ import {
   List,
   GitBranch,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 // ── Imports des composants ───────────────────────────────────────
 import { useCategories } from "./hooks/useCategories.js";
@@ -101,7 +102,7 @@ const Categories = () => {
   const handleSaveCategory = async () => {
     const validation = validateCategory(categoryForm);
     if (!validation.isValid) {
-      alert(
+      toast.error(
         "Veuillez corriger les erreurs: " +
           Object.values(validation.errors).join(", "),
       );
@@ -117,14 +118,14 @@ const Categories = () => {
       setShowCategoryModal(false);
     } catch (err) {
       console.error("Erreur lors de la sauvegarde:", err);
-      alert("Erreur lors de la sauvegarde");
+      toast.error("Erreur lors de la sauvegarde");
     }
   };
 
   const handleSaveSubcat = async () => {
     const validation = validateSubcategory(subcatForm);
     if (!validation.isValid) {
-      alert(
+      toast.error(
         "Veuillez corriger les erreurs: " +
           Object.values(validation.errors).join(", "),
       );
@@ -144,7 +145,7 @@ const Categories = () => {
       setShowSubcatModal(false);
     } catch (err) {
       console.error("Erreur lors de la sauvegarde:", err);
-      alert("Erreur lors de la sauvegarde");
+      toast.error("Erreur lors de la sauvegarde");
     }
   };
 
@@ -154,7 +155,7 @@ const Categories = () => {
         await deleteSubcategory(catId, subcatId);
       } catch (err) {
         console.error("Erreur lors de la suppression:", err);
-        alert("Erreur lors de la suppression");
+        toast.error("Erreur lors de la suppression");
       }
     }
   };
@@ -169,7 +170,7 @@ const Categories = () => {
         await deleteCategory(id);
       } catch (err) {
         console.error("Erreur lors de la suppression:", err);
-        alert("Erreur lors de la suppression");
+        toast.error("Erreur lors de la suppression");
       }
     }
   };

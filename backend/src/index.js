@@ -6,8 +6,8 @@ import compression from "compression";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import { body, param, query, validationResult } from "express-validator";
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import connectDB from "./config/db.js";
 
 // Import des routes
@@ -42,15 +42,19 @@ const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-app.use("/uploads", cors({
- origin: [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:3002",
-  "http://192.168.11.233:3000",
-],
-  credentials: true,
-}), express.static(join(__dirname, "../uploads")));
+app.use(
+  "/uploads",
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+  }),
+  express.static(join(__dirname, "../uploads")),
+);
 
 // Middleware de sécurité
 app.use(
@@ -67,9 +71,9 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:3002",
-  "http://192.168.11.233:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3000",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
@@ -167,4 +171,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-

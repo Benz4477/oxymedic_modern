@@ -2,7 +2,7 @@
 
 class CommandeService {
   // ── Configuration API ──
-static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/api";
+  static BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   // ── Récupération des données ──
   static async getAllCommandes() {
     try {
@@ -10,7 +10,9 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la récupération des commandes");
+        throw new Error(
+          data.message || "Erreur lors de la récupération des commandes",
+        );
       }
 
       return data.data;
@@ -50,9 +52,10 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
       const data = await response.json();
 
       if (!data.success) {
-        const errorMessage = data.errors && data.errors.length > 0 
-          ? data.errors.join(", ")
-          : data.message || "Erreur lors de la création de la commande";
+        const errorMessage =
+          data.errors && data.errors.length > 0
+            ? data.errors.join(", ")
+            : data.message || "Erreur lors de la création de la commande";
         throw new Error(errorMessage);
       }
 
@@ -76,7 +79,9 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la mise à jour de la commande");
+        throw new Error(
+          data.message || "Erreur lors de la mise à jour de la commande",
+        );
       }
 
       return data.data;
@@ -95,7 +100,9 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la suppression de la commande");
+        throw new Error(
+          data.message || "Erreur lors de la suppression de la commande",
+        );
       }
 
       return true;
@@ -108,23 +115,28 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
   // ── Fonctionnalités avancées ──
   static async reconduireCommande(id, type, newEnd, newAmount, note) {
     try {
-      const response = await fetch(`${this.BASE_URL}/commandes/${id}/reconduire`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${this.BASE_URL}/commandes/${id}/reconduire`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type,
+            newEnd,
+            newAmount,
+            note,
+          }),
         },
-        body: JSON.stringify({
-          type,
-          newEnd,
-          newAmount,
-          note,
-        }),
-      });
+      );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la reconduction de la commande");
+        throw new Error(
+          data.message || "Erreur lors de la reconduction de la commande",
+        );
       }
 
       return data.data;
@@ -136,18 +148,23 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
 
   static async updateChecklistRetour(id, checklistData) {
     try {
-      const response = await fetch(`${this.BASE_URL}/commandes/${id}/checklist-retour`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${this.BASE_URL}/commandes/${id}/checklist-retour`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(checklistData),
         },
-        body: JSON.stringify(checklistData),
-      });
+      );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la mise à jour du checklist retour");
+        throw new Error(
+          data.message || "Erreur lors de la mise à jour du checklist retour",
+        );
       }
 
       return data.data;
@@ -170,7 +187,9 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la mise à jour du statut");
+        throw new Error(
+          data.message || "Erreur lors de la mise à jour du statut",
+        );
       }
 
       return data.data;
@@ -195,7 +214,10 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
     const total = commandes.length;
     const actives = commandes.filter((c) => c.status === "active").length;
     const pending = commandes.filter((c) => c.status === "pending").length;
-    const totalAmount = commandes.reduce((sum, c) => sum + (c.amountTTC || 0), 0);
+    const totalAmount = commandes.reduce(
+      (sum, c) => sum + (c.amountTTC || 0),
+      0,
+    );
 
     return {
       total,
@@ -209,11 +231,11 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
   static getMockCommandes() {
     return [
       {
-        id: 1,
+        _id: "69ee4449fabc53a87858fcd8",
         ref: "CMD-2024-001",
-        clientId: 1,
-        equipId: "1",
-        unitId: 1,
+        clientId: "69ee4449fabc53a87858fcd8",
+        equipId: "507f1f77bcf86cd799439011",
+        unitId: "507f1f77bcf86cd799439012",
         start: "15/04/2024",
         end: "20/04/2024",
         status: "active",
@@ -229,11 +251,11 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
         updatedAt: new Date().toISOString(),
       },
       {
-        id: 2,
+        _id: "69f0a4e3052bf8ac5f173060",
         ref: "CMD-2024-002",
-        clientId: 2,
-        equipId: "2",
-        unitId: 2,
+        clientId: "69f0a4e3052bf8ac5f173060",
+        equipId: "507f1f77bcf86cd799439013",
+        unitId: "507f1f77bcf86cd799439014",
         start: "18/04/2024",
         end: "25/04/2024",
         status: "pending",
@@ -288,11 +310,14 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
 
     // Validation des dates
     if (commandeData.start && commandeData.end) {
-      const startDate = new Date(commandeData.start.split("/").reverse().join("-"));
+      const startDate = new Date(
+        commandeData.start.split("/").reverse().join("-"),
+      );
       const endDate = new Date(commandeData.end.split("/").reverse().join("-"));
-      
+
       if (startDate >= endDate) {
-        errors.dates = "La date de fin doit être postérieure à la date de début";
+        errors.dates =
+          "La date de fin doit être postérieure à la date de début";
       }
     }
 

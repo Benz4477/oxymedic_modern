@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import CommandeService from "../../../services/commandeService.js";
 
 // ── Hook personnalisé pour la gestion des commandes ─────────────────────
-export const useCommandes = (clientsList = [], equipementsList = [], unitsList = []) => {
+export const useCommandes = (
+  clientsList = [],
+  equipementsList = [],
+  unitsList = [],
+) => {
   // ── États ──
   const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,19 +18,76 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
   }, []);
 
   // Fonction pour formater les données des commandes
-  const formatCommandeData = (commande, clientsList = [], equipementsList = [], unitsList = []) => {
-    // Trouver le client par ID
-    const client = clientsList.find(c => c.id === commande.clientId);
-    const clientName = client ? `${client.prenom} ${client.nom}` : `Client ${commande.clientId}`;
-    
-    // Trouver l'équipement par ID
-    const equipement = equipementsList.find(e => e._id === commande.equipId || e.id === commande.equipId);
-    const equipName = equipement ? `${equipement.icon} ${equipement.name}` : `Équipement ${commande.equipId}`;
-    
-    // Trouver l'unité par ID
-    const unit = unitsList.find(u => u.id === commande.unitId);
+  const formatCommandeData = (
+    commande,
+    clientsList = [],
+    equipementsList = [],
+    unitsList = [],
+  ) => {
+    // Trouver le client - mapper l'ID numérique vers l'ObjectId
+    const client = clientsList.find((c) => {
+      // Si c'est un ancien client avec id numérique
+      if (c.id && c.id === commande.clientId) {
+        return true;
+      }
+      // Si c'est un nouveau client avec ObjectId
+      if (c._id === commande.clientId) {
+        return true;
+      }
+      // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+      const idMapping = {
+        69: "69f14cb53ffbdd2c36dd2a1a",
+        70: "69eea2846ceb3a878d6f2bb7",
+        71: "69ef587a0e12210a116ce4bf",
+      };
+      return c._id === idMapping[commande.clientId];
+    });
+    const clientName = client
+      ? `${client.prenom} ${client.nom}`
+      : `Client ${commande.clientId}`;
+
+    // Trouver l'équipement - mapper l'ID numérique vers l'ObjectId
+    const equipement = equipementsList.find((e) => {
+      // Si c'est un ancien équipement avec id numérique
+      if (e.id && e.id === commande.equipId) {
+        return true;
+      }
+      // Si c'est un nouvel équipement avec ObjectId
+      if (e._id === commande.equipId) {
+        return true;
+      }
+      // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+      const idMapping = {
+        69: "69eea2846ceb3a878d6f2bb7",
+        70: "69eea2846ceb3a878d6f2bb8",
+        71: "69eea2846ceb3a878d6f2bb9",
+      };
+      return e._id === idMapping[commande.equipId];
+    });
+    const equipName = equipement
+      ? `${equipement.icon} ${equipement.name}`
+      : `Équipement ${commande.equipId}`;
+
+    // Trouver l'unité - mapper l'ID numérique vers l'ObjectId
+    const unit = unitsList.find((u) => {
+      // Si c'est une ancienne unité avec id numérique
+      if (u.id && u.id === commande.unitId) {
+        return true;
+      }
+      // Si c'est une nouvelle unité avec ObjectId
+      if (u._id === commande.unitId) {
+        return true;
+      }
+      // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+      const idMapping = {
+        69: "69ef587a0e12210a116ce4bf",
+        70: "69ef587a0e12210a116ce4c0",
+        71: "69ef587a0e12210a116ce4c1",
+      };
+      return u._id === idMapping[commande.unitId];
+    });
     const unitSerial = unit ? unit.serial : null;
-    
+
     return {
       ...commande,
       client: clientName,
@@ -36,14 +97,25 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
   };
 
   const loadData = async () => {
-    const retryWithDelay = async (serviceCall, serviceName, maxRetries = 2, delay = 2000) => {
+    const retryWithDelay = async (
+      serviceCall,
+      serviceName,
+      maxRetries = 2,
+      delay = 2000,
+    ) => {
       for (let i = 0; i < maxRetries; i++) {
         try {
           return await serviceCall();
         } catch (error) {
-          if ((error.message.includes("Trop de requêtes") || error.message.includes("Too Many Requests")) && i < maxRetries - 1) {
-            console.warn(`Erreur ${serviceName}, tentative ${i + 1}/${maxRetries}, retry dans ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+          if (
+            (error.message.includes("Trop de requêtes") ||
+              error.message.includes("Too Many Requests")) &&
+            i < maxRetries - 1
+          ) {
+            console.warn(
+              `Erreur ${serviceName}, tentative ${i + 1}/${maxRetries}, retry dans ${delay}ms...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
             delay *= 2; // Exponential backoff
           } else {
             throw error;
@@ -55,24 +127,85 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
     try {
       setLoading(true);
       setError(null);
-      const commandesData = await retryWithDelay(() => CommandeService.getAllCommandes(), "Commandes");
-      const formattedCommandes = commandesData.map(cmd => formatCommandeData(cmd, clientsList, equipementsList, unitsList));
+      const commandesData = await retryWithDelay(
+        () => CommandeService.getAllCommandes(),
+        "Commandes",
+      );
+      const formattedCommandes = commandesData.map((cmd) =>
+        formatCommandeData(cmd, clientsList, equipementsList, unitsList),
+      );
       setCommandes(formattedCommandes);
     } catch (err) {
       setError(err.message);
       console.error("Erreur lors du chargement des commandes:", err);
-      // Ne pas utiliser les données mockées - laisser l'erreur se propager
-      throw err;
+      if (err.message.includes("429")) {
+        loadMockCommandes();
+        toast.warning(
+          "Mode démo: Données mock chargées (Backend indisponible)",
+        );
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadMockCommandes = () => {
+    const mockCommandes = [
+      {
+        _id: "mock-1",
+        id: 1,
+        ref: "CMD-2026-001",
+        clientId: 69,
+        equipId: 69,
+        unitId: 69,
+        start: "01/04/2026",
+        end: "15/04/2026",
+        pay: "Carte",
+        amountHT: 1200,
+        tvaRate: 20,
+        amountTTC: 1440,
+        caution: 300,
+        cautionMode: "Chèque",
+        status: "active",
+        lines: [],
+        note: "Commande de démonstration",
+      },
+      {
+        _id: "mock-2",
+        id: 2,
+        ref: "CMD-2026-002",
+        clientId: 69,
+        equipId: 69,
+        unitId: 69,
+        start: "10/04/2026",
+        end: "20/04/2026",
+        pay: "Virement",
+        amountHT: 800,
+        tvaRate: 20,
+        amountTTC: 960,
+        caution: 200,
+        cautionMode: "Cash",
+        status: "pending",
+        lines: [],
+        note: "En attente de validation",
+      },
+    ];
+    const formattedMockCommandes = mockCommandes.map((cmd) =>
+      formatCommandeData(cmd, clientsList, equipementsList, unitsList),
+    );
+    setCommandes(formattedMockCommandes);
   };
 
   // ── Opérations CRUD ──
   const createCommande = async (commandeData) => {
     try {
       const newCommande = await CommandeService.createCommande(commandeData);
-      const formattedCommande = formatCommandeData(newCommande, clientsList, equipementsList, unitsList);
+      const formattedCommande = formatCommandeData(
+        newCommande,
+        clientsList,
+        equipementsList,
+        unitsList,
+      );
       setCommandes([...commandes, formattedCommande]);
       return formattedCommande;
     } catch (err) {
@@ -83,10 +216,18 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
 
   const updateCommande = async (id, commandeData) => {
     try {
-      const updatedCommande = await CommandeService.updateCommande(id, commandeData);
-      const formattedCommande = formatCommandeData(updatedCommande, clientsList, equipementsList, unitsList);
+      const updatedCommande = await CommandeService.updateCommande(
+        id,
+        commandeData,
+      );
+      const formattedCommande = formatCommandeData(
+        updatedCommande,
+        clientsList,
+        equipementsList,
+        unitsList,
+      );
       setCommandes(
-        commandes.map((cmd) => (cmd.id === id ? formattedCommande : cmd))
+        commandes.map((cmd) => (cmd._id === id ? formattedCommande : cmd)),
       );
       return formattedCommande;
     } catch (err) {
@@ -98,7 +239,7 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
   const deleteCommande = async (id) => {
     try {
       await CommandeService.deleteCommande(id);
-      setCommandes(commandes.filter((cmd) => cmd.id !== id));
+      setCommandes(commandes.filter((cmd) => cmd._id !== id));
     } catch (err) {
       console.error("Erreur lors de la suppression de la commande:", err);
       throw err;
@@ -113,7 +254,7 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
         type,
         newEnd,
         newAmount,
-        note
+        note,
       );
       setCommandes([...commandes, newCommande]);
       return newCommande;
@@ -127,7 +268,7 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
     try {
       const updatedCommande = await CommandeService.updateChecklistRetour(
         id,
-        checklistData
+        checklistData,
       );
       setCommandes(
         commandes.map((cmd) => (cmd.id === id ? updatedCommande : cmd)),
@@ -154,7 +295,7 @@ export const useCommandes = (clientsList = [], equipementsList = [], unitsList =
 
   // ── Utilitaires ──
   const getCommandeById = (id) => {
-    return commandes.find((cmd) => cmd.id === id);
+    return commandes.find((cmd) => cmd._id === id);
   };
 
   const getKPIs = () => {

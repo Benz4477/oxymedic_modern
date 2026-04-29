@@ -2,7 +2,7 @@
 
 class CategoryService {
   // ── Configuration API ──
-static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/api";
+  static BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   // ── Récupération des données ──
   static async getAllCategories() {
     try {
@@ -200,7 +200,7 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
   }
 
   static calculateKPIs(categories, equipements) {
-    const totalCats = categories.filter(cat => cat.status === "actif").length;
+    const totalCats = categories.filter((cat) => cat.status === "actif").length;
     const totalEquips = equipements.length;
     const withRef = equipements.filter((e) => e.ref && e.ref.trim()).length;
     const withoutRef = totalEquips - withRef;

@@ -9,6 +9,8 @@ import {
 import UserSelection from "./components/UserSelection";
 import LoginScreen from "./components/LoginScreen";
 import AppLayout from "./components/AppLayout";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Import des pages (modules)
 import Dashboard from "./pages/Dashboard";
@@ -49,7 +51,7 @@ const appRoutes = [
   { path: "crm", element: <CRM /> },
   { path: "pipeline", element: <Pipeline /> },
   { path: "devis", element: <Devis /> },
-  { path: "commandes", element: <Commandes/> },
+  { path: "commandes", element: <Commandes /> },
   { path: "fidelite", element: <Fidelite /> },
   { path: "agenda", element: <Agenda /> },
   { path: "disponibilite", element: <Disponibilite /> },
@@ -99,6 +101,17 @@ function App() {
         {/* Route 404 (optionnel) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </Router>
   );
 }

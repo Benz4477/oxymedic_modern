@@ -1,14 +1,16 @@
 // Service pour la gestion des équipements
 
 class EquipementService {
-static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/api";
+  static BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   static async getAllEquipements() {
     try {
       const response = await fetch(`${this.BASE_URL}/stock`);
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la récupération des équipements");
+        throw new Error(
+          data.message || "Erreur lors de la récupération des équipements",
+        );
       }
 
       return data.data;
@@ -38,7 +40,12 @@ static BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.11.233:5000/ap
   // Données mock pour le développement (fallback)
   static getMockEquipements() {
     return [
-      { _id: "1", name: "Fauteuil roulant standard", icon: "🦽", archived: false },
+      {
+        _id: "1",
+        name: "Fauteuil roulant standard",
+        icon: "🦽",
+        archived: false,
+      },
       { _id: "2", name: "Lit médicalisé", icon: "🛏️", archived: false },
       { _id: "3", name: "Déambulateur", icon: "🚶", archived: false },
       { _id: "4", name: "Oxygène portable", icon: "🫧", archived: false },

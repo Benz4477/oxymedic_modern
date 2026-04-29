@@ -11,6 +11,7 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const Apparence = () => {
   const [theme, setTheme] = useState({
@@ -62,7 +63,7 @@ const Apparence = () => {
 
   const handleSaveTheme = () => {
     localStorage.setItem("app-theme", JSON.stringify(theme));
-    alert("Thème sauvegardé avec succès !");
+    toast.success("Thème sauvegardé avec succès !");
   };
 
   const getPreviewStyles = () => {

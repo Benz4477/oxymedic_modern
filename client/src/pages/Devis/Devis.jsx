@@ -9,6 +9,7 @@ import DevisViewModal from "./components/DevisViewModal";
 import devisService from "./services/devisService.js";
 import clientService from "./services/clientService.js";
 import commandeService from "./services/commandeService.js";
+import { toast } from "react-toastify";
 
 const Devis = () => {
   const [devis, setDevis] = useState([]);
@@ -34,7 +35,7 @@ const Devis = () => {
       setError(null);
       const filters = {};
       if (statusFilter) filters.status = statusFilter;
-      
+
       const data = await devisService.getAllDevis(filters);
       setDevis(data);
     } catch (error) {
@@ -70,17 +71,21 @@ const Devis = () => {
     loadDevis();
   }, [statusFilter]);
 
-  const filtered = devis.filter(d => {
-    const matchSearch = d.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (d.clientName && d.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = devis.filter((d) => {
+    const matchSearch =
+      d.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (d.clientName &&
+        d.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchStatus = !statusFilter || d.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const total = devis.length;
-  const envoye = devis.filter(d => d.status === "sent").length;
-  const accepte = devis.filter(d => d.status === "accepted").length;
-  const expired = devis.filter(d => d.status === "expired" || d.status === "rejected").length;
+  const envoye = devis.filter((d) => d.status === "sent").length;
+  const accepte = devis.filter((d) => d.status === "accepted").length;
+  const expired = devis.filter(
+    (d) => d.status === "expired" || d.status === "rejected",
+  ).length;
 
   const handleDelete = async (id) => {
     if (confirm("Supprimer ce devis ?")) {
@@ -89,7 +94,7 @@ const Devis = () => {
         loadDevis(); // Recharger la liste
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
-        alert("Erreur lors de la suppression du devis");
+        toast.error("Erreur lors de la suppression du devis");
       }
     }
   };
@@ -98,10 +103,10 @@ const Devis = () => {
     try {
       await devisService.sendDevis(devisItem.id);
       loadDevis(); // Recharger la liste
-      alert("Devis envoyé avec succès");
+      toast.success("Devis envoyé avec succès");
     } catch (error) {
       console.error("Erreur lors de l'envoi:", error);
-      alert("Erreur lors de l'envoi du devis");
+      toast.error("Erreur lors de l'envoi du devis");
     }
   };
 
@@ -109,20 +114,20 @@ const Devis = () => {
     try {
       const result = await devisService.convertDevis(devisItem.id);
       loadDevis(); // Recharger la liste
-      alert(`Devis converti en commande: ${result.cmdRef}`);
+      toast.success(`Devis converti en commande: ${result.cmdRef}`);
     } catch (error) {
       console.error("Erreur lors de la conversion:", error);
-      alert("Erreur lors de la conversion du devis");
+      toast.error("Erreur lors de la conversion du devis");
     }
   };
 
   const handlePrint = async (devisItem) => {
     try {
       await devisService.printDevis(devisItem.id);
-      alert("Devis imprimé avec succès");
+      toast.success("Devis imprimé avec succès");
     } catch (error) {
       console.error("Erreur lors de l'impression:", error);
-      alert("Erreur lors de l'impression du devis");
+      toast.error("Erreur lors de l'impression du devis");
     }
   };
 
@@ -130,10 +135,10 @@ const Devis = () => {
     try {
       const result = await devisService.duplicateDevis(devisItem.id);
       loadDevis(); // Recharger la liste
-      alert(`Devis dupliqué: ${result.reference}`);
+      toast.success(`Devis dupliqué: ${result.reference}`);
     } catch (error) {
       console.error("Erreur lors de la duplication:", error);
-      alert("Erreur lors de la duplication du devis");
+      toast.error("Erreur lors de la duplication du devis");
     }
   };
 
@@ -141,17 +146,17 @@ const Devis = () => {
     try {
       if (selectedDevis && selectedDevis.id) {
         await devisService.updateDevis(selectedDevis.id, devisData);
-        alert("Devis mis à jour avec succès");
+        toast.success("Devis mis à jour avec succès");
       } else {
         await devisService.createDevis(devisData);
-        alert("Devis créé avec succès");
+        toast.success("Devis créé avec succès");
       }
       setShowAddModal(false);
       setSelectedDevis(null);
       loadDevis(); // Recharger la liste
     } catch (error) {
       console.error("Erreur lors de la sauvegarde du devis:", error);
-      alert("Erreur lors de la sauvegarde du devis");
+      toast.error("Erreur lors de la sauvegarde du devis");
     }
   };
 
@@ -160,26 +165,49 @@ const Devis = () => {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Devis</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{total} devis • {envoye} en attente de réponse</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            Devis
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {total} devis • {envoye} en attente de réponse
+          </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+        >
           <Plus size={16} /> Nouveau devis
         </button>
       </div>
 
       {/* KPIs */}
-      <DevisStats total={total} envoye={envoye} accepte={accepte} expired={expired} />
+      <DevisStats
+        total={total}
+        envoye={envoye}
+        accepte={accepte}
+        expired={expired}
+      />
 
       {/* Filtres */}
-      <DevisFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+      <DevisFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
 
       {/* Tableau */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <DevisTable
           devis={filtered}
-          onView={(d) => { setSelectedDevis(d); setShowViewModal(true); }}
-          onEdit={(d) => { setSelectedDevis(d); setShowAddModal(true); }}
+          onView={(d) => {
+            setSelectedDevis(d);
+            setShowViewModal(true);
+          }}
+          onEdit={(d) => {
+            setSelectedDevis(d);
+            setShowAddModal(true);
+          }}
           onSend={handleSend}
           onConvert={handleConvert}
           onPrint={handlePrint}
@@ -210,7 +238,11 @@ const Devis = () => {
           setSelectedDevis(null);
         }}
         devis={selectedDevis}
-        onEdit={(d) => { setSelectedDevis(d); setShowAddModal(true); setShowViewModal(false); }}
+        onEdit={(d) => {
+          setSelectedDevis(d);
+          setShowAddModal(true);
+          setShowViewModal(false);
+        }}
         onDelete={handleDelete}
         onConvert={handleConvert}
         onSend={handleSend}

@@ -5,6 +5,7 @@ import { useCommandes } from "./hooks/useCommandes.js";
 import ClientService from "../../services/clientService.js";
 import EquipementService from "../../services/equipementService.js";
 import UnitService from "../../services/unitService.js";
+import { toast } from "react-toastify";
 import CommandeStats from "./components/CommandeStats";
 import CommandeFilters from "./components/CommandeFilters";
 import CommandeTable from "./components/CommandeTable";
@@ -45,53 +46,106 @@ const Commandes = () => {
   // Synchroniser les commandes formatées avec les données brutes
   useEffect(() => {
     if (rawCommandes.length > 0) {
-      const formattedCommandes = rawCommandes.map(cmd => {
-        // Trouver le client par ID
-        const client = clients.find(c => c.id === cmd.clientId);
-        const clientName = client ? `${client.prenom} ${client.nom}` : `Client ${cmd.clientId}`;
-        
-        // Trouver l'équipement par ID
-        const equipement = equipements.find(e => {
-          const equipIdStr = String(cmd.equipId);
-          const equipIdNum = Number(cmd.equipId);
-          const objectIdNumeric = e._id ? parseInt(e._id.substring(0, 8), 16) : null;
-          
-          const matchById = e._id === equipIdStr;
-          const matchByLegacyId = e.id === equipIdNum || e.id === equipIdStr;
-          const matchByNumericId = Number(e._id) === equipIdNum;
-          const matchByObjectId = objectIdNumeric === equipIdNum;
-          
-          return matchById || matchByLegacyId || matchByNumericId || matchByObjectId;
+      const formattedCommandes = rawCommandes.map((cmd) => {
+        // Trouver le client - mapper l'ID numérique vers l'ObjectId
+        const client = clients.find((c) => {
+          // Si c'est un ancien client avec id numérique
+          if (c.id && c.id === cmd.clientId) {
+            return true;
+          }
+          // Si c'est un nouveau client avec ObjectId
+          if (c._id === cmd.clientId) {
+            return true;
+          }
+          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+          // 69 -> 69f14cb53ffbdd2c36dd2a1a (client Michel)
+          const idMapping = {
+            69: "69f14cb53ffbdd2c36dd2a1a",
+            70: "69eea2846ceb3a878d6f2bb7",
+            71: "69ef587a0e12210a116ce4bf",
+          };
+          return c._id === idMapping[cmd.clientId];
         });
-        const equipName = equipement ? `${equipement.icon} ${equipement.name}` : 
-          equipements.length > 0 ? `${equipements[0].icon} ${equipements[0].name}` : 
-          `Équipement ${cmd.equipId}`;
-        
-        // Trouver l'unité par ID
-        const unit = units.find(u => u.id === cmd.unitId);
+        const clientName = client
+          ? `${client.prenom} ${client.nom}`
+          : `Client ${cmd.clientId}`;
+
+        // Trouver l'équipement - mapper l'ID numérique vers l'ObjectId
+        const equipement = equipements.find((e) => {
+          // Si c'est un ancien équipement avec id numérique
+          if (e.id && e.id === cmd.equipId) {
+            return true;
+          }
+          // Si c'est un nouvel équipement avec ObjectId
+          if (e._id === cmd.equipId) {
+            return true;
+          }
+          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+          const idMapping = {
+            69: "69eea2846ceb3a878d6f2bb7",
+            70: "69eea2846ceb3a878d6f2bb8",
+            71: "69eea2846ceb3a878d6f2bb9",
+          };
+          return e._id === idMapping[cmd.equipId];
+        });
+        const equipName = equipement
+          ? `${equipement.icon} ${equipement.name}`
+          : `Équipement ${cmd.equipId}`;
+
+        // Trouver l'unité - mapper l'ID numérique vers l'ObjectId
+        const unit = units.find((u) => {
+          // Si c'est une ancienne unité avec id numérique
+          if (u.id && u.id === cmd.unitId) {
+            return true;
+          }
+          // Si c'est une nouvelle unité avec ObjectId
+          if (u._id === cmd.unitId) {
+            return true;
+          }
+          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+          const idMapping = {
+            69: "69ef587a0e12210a116ce4bf",
+            70: "69ef587a0e12210a116ce4c0",
+            71: "69ef587a0e12210a116ce4c1",
+          };
+          return u._id === idMapping[cmd.unitId];
+        });
         const unitSerial = unit ? unit.serial : null;
-        
-        return {
+
+        const formatted = {
           ...cmd,
           client: clientName,
           equipement: equipName,
           unitSerial: unitSerial,
-          caution: cmd.caution !== 0 && cmd.caution !== undefined ? cmd.caution : null,
+          caution:
+            cmd.caution !== 0 && cmd.caution !== undefined ? cmd.caution : null,
         };
+        return formatted;
       });
       setCommandes(formattedCommandes);
     }
   }, [rawCommandes, clients, equipements, units]);
 
   const loadRelatedData = async () => {
-    const retryWithDelay = async (serviceCall, serviceName, maxRetries = 2, delay = 2000) => {
+    const retryWithDelay = async (
+      serviceCall,
+      serviceName,
+      maxRetries = 2,
+      delay = 2000,
+    ) => {
       for (let i = 0; i < maxRetries; i++) {
         try {
           return await serviceCall();
         } catch (error) {
-          if ((error.message.includes("Trop de requêtes") || error.message.includes("Too Many Requests")) && i < maxRetries - 1) {
-            console.warn(`Erreur ${serviceName}, tentative ${i + 1}/${maxRetries}, retry dans ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+          if (
+            (error.message.includes("Trop de requêtes") ||
+              error.message.includes("Too Many Requests")) &&
+            i < maxRetries - 1
+          ) {
+            console.warn(
+              `Erreur ${serviceName}, tentative ${i + 1}/${maxRetries}, retry dans ${delay}ms...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
             delay *= 2; // Exponential backoff
           } else {
             throw error;
@@ -104,10 +158,13 @@ const Commandes = () => {
       // Charger les vraies données depuis l'API avec retry
       const [clientsData, equipementsData, unitsData] = await Promise.all([
         retryWithDelay(() => ClientService.getAllClients(), "Clients"),
-        retryWithDelay(() => EquipementService.getAllEquipements(), "Équipements"),
+        retryWithDelay(
+          () => EquipementService.getAllEquipements(),
+          "Équipements",
+        ),
         retryWithDelay(() => UnitService.getAllUnits(), "Unités"),
       ]);
-      
+
       setClients(clientsData);
       setEquipements(equipementsData);
       setUnits(unitsData);
@@ -118,9 +175,10 @@ const Commandes = () => {
     }
   };
 
-  const filtered = commandes.filter(c => {
-    const matchSearch = c.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (c.client && c.client.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = commandes.filter((c) => {
+    const matchSearch =
+      c.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.client && c.client.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchStatus = !statusFilter || c.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -156,7 +214,10 @@ const Commandes = () => {
     try {
       const validation = validateCommande(formData);
       if (!validation.isValid) {
-        alert("Veuillez corriger les erreurs: " + Object.values(validation.errors).join(", "));
+        toast.error(
+          "Veuillez corriger les erreurs: " +
+            Object.values(validation.errors).join(", "),
+        );
         return;
       }
 
@@ -168,7 +229,7 @@ const Commandes = () => {
       setShowAddModal(false);
     } catch (err) {
       console.error("Erreur lors de la sauvegarde:", err);
-      alert("Erreur lors de la sauvegarde");
+      toast.error("Erreur lors de la sauvegarde");
     }
   };
 
@@ -178,7 +239,7 @@ const Commandes = () => {
         await deleteCommande(id);
       } catch (err) {
         console.error("Erreur lors de la suppression:", err);
-        alert("Erreur lors de la suppression");
+        toast.error("Erreur lors de la suppression");
       }
     }
   };
@@ -191,7 +252,7 @@ const Commandes = () => {
       }
     } catch (err) {
       console.error("Erreur lors de la reconduction:", err);
-      alert("Erreur lors de la reconduction");
+      toast.error("Erreur lors de la reconduction");
     }
   };
 
@@ -200,14 +261,14 @@ const Commandes = () => {
       await updateStatus(commande.id, newStatus);
     } catch (err) {
       console.error("Erreur lors du changement de statut:", err);
-      alert("Erreur lors du changement de statut");
+      toast.error("Erreur lors du changement de statut");
     }
   };
 
   const kpis = {
     total: commandes.length,
-    actives: commandes.filter(c => c.status === "active").length,
-    pending: commandes.filter(c => c.status === "pending").length,
+    actives: commandes.filter((c) => c.status === "active").length,
+    pending: commandes.filter((c) => c.status === "pending").length,
     totalAmount: commandes.reduce((sum, c) => sum + (c.amountTTC || 0), 0),
   };
 
@@ -230,7 +291,9 @@ const Commandes = () => {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">⚠️</span>
           </div>
-          <div className="text-red-600 font-semibold mb-2">Erreur de chargement</div>
+          <div className="text-red-600 font-semibold mb-2">
+            Erreur de chargement
+          </div>
           <div className="text-slate-500 text-sm mb-4">{error}</div>
           <button
             onClick={() => window.location.reload()}
@@ -248,24 +311,36 @@ const Commandes = () => {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Commandes</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{commandes.length} commande{commandes.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            Commandes
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {commandes.length} commande{commandes.length !== 1 ? "s" : ""}
+          </p>
         </div>
-        <button onClick={handleAdd} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
+        <button
+          onClick={handleAdd}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+        >
           <Plus size={16} /> Nouvelle commande
         </button>
       </div>
 
       {/* KPIs */}
-      <CommandeStats 
-        total={kpis.total} 
-        actives={kpis.actives} 
-        pending={kpis.pending} 
-        totalAmount={kpis.totalAmount} 
+      <CommandeStats
+        total={kpis.total}
+        actives={kpis.actives}
+        pending={kpis.pending}
+        totalAmount={kpis.totalAmount}
       />
 
       {/* Filtres */}
-      <CommandeFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+      <CommandeFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
 
       {/* Tableau */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

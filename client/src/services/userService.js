@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.11.233:5000/api";
+const API_BASE_URL = "http://localhost:5000/api";
 export const fetchActiveUsers = async () => {
   const response = await fetch(`${API_BASE_URL}/users`);
   const data = await response.json();

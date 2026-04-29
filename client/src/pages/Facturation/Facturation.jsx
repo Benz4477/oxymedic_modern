@@ -9,6 +9,7 @@ import FactureViewModal from "./components/FactureViewModal";
 import factureService from "./services/factureService";
 import ClientService from "../../services/clientService";
 import CommandeService from "../../services/commandeService";
+import { toast } from "react-toastify";
 
 const Facturation = () => {
   const [factures, setFactures] = useState([]);
@@ -29,7 +30,7 @@ const Facturation = () => {
     clientEmail: "",
     clientAdresse: "",
     clientId: "",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split("T")[0],
     dateEcheance: "",
     type: "facture",
     status: "draft",
@@ -42,7 +43,7 @@ const Facturation = () => {
     montantPaye: 0,
     montantRestant: 0,
     notes: "",
-    cmdRef: ""
+    cmdRef: "",
   });
 
   useEffect(() => {
@@ -82,8 +83,10 @@ const Facturation = () => {
 
   const filteredFactures = factures.filter((facture) => {
     const matchesSearch =
-      (facture.num && facture.num.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (facture.clientNom && facture.clientNom.toLowerCase().includes(searchTerm.toLowerCase()));
+      (facture.num &&
+        facture.num.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (facture.clientNom &&
+        facture.clientNom.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = !statusFilter || facture.status === statusFilter;
     const matchesType = !typeFilter || facture.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
@@ -114,7 +117,7 @@ const Facturation = () => {
       montantPaye: facture.montantPaye || 0,
       montantRestant: facture.montantRestant || facture.montantTTC,
       notes: facture.notes || "",
-      cmdRef: facture.cmdRef || ""
+      cmdRef: facture.cmdRef || "",
     });
     setModePaiement(facture.modePaiement || "");
     setShowEditModal(true);
@@ -125,16 +128,18 @@ const Facturation = () => {
       try {
         await factureService.deleteFacture(id);
         await loadFactures();
-        alert("Facture supprimée avec succès");
+        toast.success("Facture supprimée avec succès");
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
-        alert("Erreur lors de la suppression de la facture");
+        toast.error("Erreur lors de la suppression de la facture");
       }
     }
   };
 
   const handleDownload = (facture) => {
-    alert(`Téléchargement de la facture ${facture.num} - Fonction à implémenter`);
+    toast.info(
+      `Téléchargement de la facture ${facture.num} - Fonction à implémenter`,
+    );
     console.log("Télécharger facture:", facture.num);
   };
 
@@ -142,18 +147,18 @@ const Facturation = () => {
     try {
       // Préparer le payload sans modePaiement s'il est vide
       const payload = { ...formData };
-      
+
       // Ne pas envoyer modePaiement s'il est vide ou null
       if (!modePaiement || modePaiement === "") {
         delete payload.modePaiement;
       } else {
         payload.modePaiement = modePaiement;
       }
-      
+
       // Supprimer les champs vides indésirables
       if (!payload.num) delete payload.num;
       if (!payload.cmdRef) delete payload.cmdRef;
-      
+
       if (showEditModal && selectedFacture) {
         await factureService.updateFacture(selectedFacture.id, payload);
       } else {
@@ -163,10 +168,17 @@ const Facturation = () => {
       setShowAddModal(false);
       setShowEditModal(false);
       resetFormData();
-      alert(showEditModal ? "Facture mise à jour avec succès" : "Facture créée avec succès");
+      toast.success(
+        showEditModal
+          ? "Facture mise à jour avec succès"
+          : "Facture créée avec succès",
+      );
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
-      alert("Erreur lors de la sauvegarde: " + (error.response?.data?.message || error.message));
+      toast.error(
+        "Erreur lors de la sauvegarde: " +
+          (error.response?.data?.message || error.message),
+      );
     }
   };
 
@@ -177,7 +189,7 @@ const Facturation = () => {
       clientEmail: "",
       clientAdresse: "",
       clientId: "",
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       dateEcheance: "",
       type: "facture",
       status: "draft",
@@ -190,32 +202,39 @@ const Facturation = () => {
       montantPaye: 0,
       montantRestant: 0,
       notes: "",
-      cmdRef: ""
+      cmdRef: "",
     });
     setModePaiement("");
   };
 
   const totalFactures = factures.length;
-  const enAttente = factures.filter(f => f.status === "en_attente").length;
-  const payees = factures.filter(f => f.status === "payée").length;
+  const enAttente = factures.filter((f) => f.status === "en_attente").length;
+  const payees = factures.filter((f) => f.status === "payée").length;
 
   return (
     <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Facturation</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{totalFactures} factures • {enAttente} en attente</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            Facturation
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {totalFactures} factures • {enAttente} en attente
+          </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+        >
           <Plus size={16} /> Nouvelle facture
         </button>
       </div>
 
       {/* KPIs */}
-      <FactureStats 
-        total={totalFactures} 
-        enAttente={enAttente} 
+      <FactureStats
+        total={totalFactures}
+        enAttente={enAttente}
         payees={payees}
       />
 
@@ -241,8 +260,8 @@ const Facturation = () => {
       {/* Modal d'ajout/modification */}
       <FactureModal
         isOpen={showAddModal || showEditModal}
-        onClose={() => { 
-          setShowAddModal(false); 
+        onClose={() => {
+          setShowAddModal(false);
           setShowEditModal(false);
           resetFormData();
         }}

@@ -1,5 +1,5 @@
 // src/pages/Clients/Clients.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users,
   Search,
@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import clientService from "./services/clientService";
 import ClientProfile from "./ClientProfile";
+import commandeService from "../../services/commandeService";
+import equipementService from "../../services/equipementService";
+import { toast } from "react-toastify";
 
 /* ── Avatar initiales ────────────────────────────────────────────── */
 const AVATAR_COLORS = [
@@ -44,7 +47,15 @@ const Avatar = ({ prenom = "", nom = "" }) => {
 /* ── Composant principal ─────────────────────────────────────────── */
 const Clients = () => {
   const [clients, setClients] = useState([]);
+  const [commandes, setCommandes] = useState([]);
+  const [equipements, setEquipements] = useState([]);
+  const [clientsAvecCommandes, setClientsAvecCommandes] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Protection contre les boucles infinies
+  const retryCountRef = useRef(0);
+  const maxGlobalRetries = 3;
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
@@ -73,17 +84,199 @@ const Clients = () => {
   });
   const [newCoords, setNewCoords] = useState({ lat: null, lng: null });
   const [coordInput, setCoordInput] = useState("");
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
-    loadClients();
+    if (!isLoading && !isDataLoaded) {
+      setIsLoading(true);
+      loadAllData().finally(() => {
+        setIsDataLoaded(true);
+      });
+    }
   }, []);
 
-  const loadClients = async () => {
-    const data = await clientService.getAllClients();
-    setClients(data);
+  const loadAllData = async (retryCount = 0) => {
+    const MAX_RETRIES = 3;
+
+    // Protection globale contre les boucles infinies
+    if (retryCountRef.current >= maxGlobalRetries) {
+      console.error(
+        "🛑 Nombre maximum de retries global atteint - arrêt forcé",
+      );
+      // Charger les données mock en fallback
+      loadMockData();
+      toast.warning("Mode démo: Données mock chargées (Backend indisponible)");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Charger les données séquentiellement avec des délais pour éviter le rate limiting
+      await loadClients();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await loadCommandes();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await loadEquipements();
+
+      // Réinitialiser le compteur de retries en cas de succès
+      retryCountRef.current = 0;
+    } catch (error) {
+      console.error("Erreur lors du chargement des données:", error);
+
+      // Détecter plus précisément les erreurs 429
+      const is429Error =
+        error.message?.includes("429") ||
+        error.message?.includes("Trop de requêtes") ||
+        error.message?.includes("Too Many Requests") ||
+        error.response?.status === 429 ||
+        (error.name === "AxiosError" && error.response?.status === 429);
+
+      retryCountRef.current++;
+
+      if (
+        is429Error &&
+        retryCount < MAX_RETRIES &&
+        retryCountRef.current <= maxGlobalRetries
+      ) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 8000);
+        console.log(
+          `⏳ Erreur 429 détectée, attente de ${backoffDelay / 1000}s avant de réessayer... (${retryCount + 1}/${MAX_RETRIES + 1})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+        return await loadAllData(retryCount + 1);
+      } else {
+        console.error(
+          "Échec final après",
+          MAX_RETRIES,
+          "tentatives ou erreur non retryable",
+        );
+        // Charger les données mock en fallback
+        loadMockData();
+        toast.warning(
+          "Mode démo: Données mock chargées (Backend indisponible)",
+        );
+        setIsLoading(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const filtered = clients.filter((c) => {
+  const loadClients = async () => {
+    try {
+      const data = await clientService.getAllClients();
+      setClients(data);
+    } catch (error) {
+      console.error("❌ Erreur loadClients:", error);
+      throw error;
+    }
+  };
+
+  const loadCommandes = async () => {
+    try {
+      const data = await commandeService.getAllCommandes();
+      setCommandes(data);
+    } catch (error) {
+      console.error("❌ Erreur loadCommandes:", error);
+      throw error;
+    }
+  };
+
+  const loadEquipements = async () => {
+    try {
+      const data = await equipementService.getAllEquipements();
+      setEquipements(data);
+    } catch (error) {
+      console.error("❌ Erreur loadEquipements:", error);
+      throw error;
+    }
+  };
+
+  // useEffect séparé pour le mapping des commandes et équipements
+  useEffect(() => {
+    if (clients.length > 0) {
+      const clientsAvecCommandes = clients.map((c) => {
+        // Utiliser le même mapping que dans Commandes.jsx pour trouver les commandes du client
+        const clientCommandes = commandes.filter((cmd) => {
+          if (!cmd.clientId) return false;
+
+          // Utiliser la même logique de mapping que dans Commandes.jsx
+          if (c.id && c.id === cmd.clientId) {
+            return true;
+          }
+          if (c._id === cmd.clientId) {
+            return true;
+          }
+          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+          const idMapping = {
+            69: "69f14cb53ffbdd2c36dd2a1a",
+            70: "69eea2846ceb3a878d6f2bb7",
+            71: "69ef587a0e12210a116ce4bf",
+          };
+          return c._id === idMapping[cmd.clientId];
+        });
+
+        // Si le client a des commandes, ajouter les équipements
+        if (clientCommandes.length > 0) {
+          const commandesAvecEquipements = clientCommandes.map((cmd) => {
+            if (!cmd.equipId) {
+              return { ...cmd, equipementNom: "Aucun équipement" };
+            }
+
+            const equipIdStr = String(cmd.equipId);
+            // Utiliser la même logique de mapping que pour les clients
+            const equipement = equipements.find((e) => {
+              // Si c'est un ancien équipement avec id numérique
+              if (e.id && e.id === cmd.equipId) {
+                return true;
+              }
+              // Si c'est un nouvel équipement avec ObjectId
+              if (e._id === cmd.equipId) {
+                return true;
+              }
+              // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
+              const idMapping = {
+                69: "69eea2846ceb3a878d6f2bb7",
+                70: "69eea2846ceb3a878d6f2bb8",
+                71: "69eea2846ceb3a878d6f2bb9",
+              };
+              return e._id === idMapping[cmd.equipId];
+            });
+
+            const equipementNom = equipement
+              ? `${equipement.icon} ${equipement.name}`
+              : `Équipement ${cmd.equipId}`;
+
+            return {
+              ...cmd,
+              equipementNom: equipementNom,
+            };
+          });
+
+          // Stocker les commandes avec équipements et leur nombre
+          return {
+            ...c,
+            commandesList: commandesAvecEquipements,
+            commandes: commandesAvecEquipements.length,
+          };
+        } else {
+          // Client sans commandes
+          return {
+            ...c,
+            commandesList: [],
+            commandes: 0,
+          };
+        }
+      });
+
+      // Mettre à jour l'état séparé pour éviter la boucle
+      setClientsAvecCommandes(clientsAvecCommandes);
+    }
+  }, [clients.length, commandes.length, equipements.length]);
+
+  const filtered = clientsAvecCommandes.filter((c) => {
     const searchMatch = `${c.prenom} ${c.nom} ${c.tel} ${c.cinNum}`
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -104,7 +297,88 @@ const Clients = () => {
   const handleDelete = async (id) => {
     if (confirm("Supprimer ce client ?")) {
       await clientService.deleteClient(id);
-      await loadClients();
+      await loadAllData();
+    }
+  };
+
+  const getCurrentPosition = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setNewCoords({ lat, lng });
+          setCoordInput(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+          setNewClient({ ...newClient, lat, lng });
+        },
+        () => toast.error("Impossible d'obtenir la position"),
+      );
+    } else {
+      toast.warning("Géolocalisation non supportée");
+    }
+  };
+
+  const handleAddClient = async () => {
+    if (!newClient.prenom || !newClient.nom || !newClient.tel) {
+      toast.error("Prénom, nom et téléphone sont requis");
+      return;
+    }
+    try {
+      await clientService.createClient(newClient);
+      toast.success("Client créé avec succès");
+      setShowAddModal(false);
+      setNewClient({
+        prenom: "",
+        nom: "",
+        tel: "",
+        email: "",
+        dateNaiss: "",
+        quartier: "Maarif",
+        adresse: "",
+        cinNum: "",
+        cinExp: "",
+        note: "",
+        lat: null,
+        lng: null,
+      });
+      setNewCoords({ lat: null, lng: null });
+      setCoordInput("");
+      // Recharger toutes les données pour que le mapping fonctionne
+      await loadAllData();
+    } catch (error) {
+      console.error("Erreur lors de la création du client:", error);
+      toast.error("Erreur lors de la création du client");
+    }
+  };
+
+  const openEditModal = (client) => {
+    setEditClient({ ...client });
+    setEditCoords({ lat: client.lat, lng: client.lng });
+    setEditCoordInput(
+      client.lat && client.lng
+        ? `${client.lat.toFixed(5)}, ${client.lng.toFixed(5)}`
+        : "",
+    );
+    setShowEditModal(true);
+  };
+
+  const handleUpdateClient = async () => {
+    if (!editClient.prenom || !editClient.nom || !editClient.tel) {
+      toast.error("Prénom, nom et téléphone sont requis");
+      return;
+    }
+    try {
+      await clientService.updateClient(editClient._id, editClient);
+      toast.success("Client mis à jour avec succès");
+      setShowEditModal(false);
+      setEditClient(null);
+      setEditCoords({ lat: null, lng: null });
+      setEditCoordInput("");
+      // Recharger toutes les données pour que le mapping fonctionne
+      await loadAllData();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du client:", error);
+      toast.error("Erreur lors de la mise à jour du client");
     }
   };
 
@@ -123,81 +397,6 @@ const Clients = () => {
       setNewCoords({ lat: parts[0], lng: parts[1] });
       setNewClient({ ...newClient, lat: parts[0], lng: parts[1] });
     }
-  };
-
-  const getCurrentPosition = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setNewCoords({ lat, lng });
-          setCoordInput(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-          setNewClient({ ...newClient, lat, lng });
-        },
-        () => alert("Impossible d'obtenir la position"),
-      );
-    } else {
-      alert("Géolocalisation non supportée");
-    }
-  };
-
-  const handleAddClient = async () => {
-    if (!newClient.prenom || !newClient.nom || !newClient.tel) {
-      alert("Prénom, nom et téléphone sont requis");
-      return;
-    }
-    await clientService.createClient(newClient);
-    setShowAddModal(false);
-    setNewClient({
-      prenom: "",
-      nom: "",
-      tel: "",
-      email: "",
-      dateNaiss: "",
-      quartier: "Maarif",
-      adresse: "",
-      cinNum: "",
-      cinExp: "",
-      note: "",
-      lat: null,
-      lng: null,
-    });
-    setNewCoords({ lat: null, lng: null });
-    setCoordInput("");
-    await loadClients();
-  };
-
-  const openEditModal = (client) => {
-    setEditClient({ ...client });
-    setEditCoords({ lat: client.lat, lng: client.lng });
-    setEditCoordInput(
-      client.lat && client.lng
-        ? `${client.lat.toFixed(5)}, ${client.lng.toFixed(5)}`
-        : ""
-    );
-    setShowEditModal(true);
-  };
-
-  const handleUpdateClient = async () => {
-    if (!editClient.prenom || !editClient.nom || !editClient.tel) {
-      alert("Prénom, nom et téléphone sont requis");
-      return;
-    }
-    await clientService.updateClient(editClient._id, editClient);
-    setShowEditModal(false);
-    setEditClient(null);
-    setEditCoords({ lat: null, lng: null });
-    setEditCoordInput("");
-    await loadClients();
-  };
-
-  const handleEditMapClick = () => {
-    const lat = 33.5 + Math.random() * 0.2;
-    const lng = -7.6 + Math.random() * 0.2;
-    setEditCoords({ lat, lng });
-    setEditCoordInput(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-    setEditClient({ ...editClient, lat, lng });
   };
 
   const updateEditCoords = (val) => {
@@ -219,10 +418,10 @@ const Clients = () => {
           setEditCoordInput(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
           setEditClient({ ...editClient, lat, lng });
         },
-        () => alert("Impossible d'obtenir la position")
+        () => toast.error("Impossible d'obtenir la position"),
       );
     } else {
-      alert("Géolocalisation non supportée");
+      toast.warning("Géolocalisation non supportée");
     }
   };
 
@@ -268,140 +467,74 @@ const Clients = () => {
     document.body.removeChild(link);
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      quartier: "",
-      hasDocuments: "",
-      dateRange: "",
-    });
-  };
-
-  if (selectedClientId) {
+  if (isLoading) {
     return (
-      <div className="p-6">
-        <ClientProfile
-          clientId={selectedClientId}
-          onBack={() => setSelectedClientId(null)}
-        />
+      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Chargement des clients...</p>
+        </div>
       </div>
     );
   }
 
-  /* classes réutilisables */
-  const fieldLabel =
-    "block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5";
-  const fieldInput =
-    "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition placeholder:text-slate-300";
-
   return (
     <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
-      {/* ── Header ──────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             Clients
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {clients.length} client{clients.length !== 1 ? "s" : ""} enregistré
-            {clients.length !== 1 ? "s" : ""}
+            {filtered.length} clients • {clients.length} total
           </p>
         </div>
-
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
-        >
-          <UserPlus size={16} />
-          Nouveau client
-        </button>
-      </div>
-
-      {/* ── KPIs ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <Users size={22} className="text-blue-600" />
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">
-              {clients.length}
-            </div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">
-              Total clients
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <Calendar size={22} className="text-emerald-600" />
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">
-              {
-                clients.filter(
-                  (c) =>
-                    new Date() - new Date(c.dateInscription) <
-                    30 * 24 * 3600000,
-                ).length
-              }
-            </div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">
-              Nouveaux ce mois
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-            <Star size={22} className="text-amber-500" />
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">
-              {clients.filter((c) => c.totalDepense > 5000).length}
-            </div>
-            <div className="text-xs text-slate-400 mt-1 font-medium">
-              Clients VIP
-            </div>
-          </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Download size={16} />
+            Exporter
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+          >
+            <UserPlus size={16} />
+            Nouveau client
+          </button>
         </div>
       </div>
 
-      {/* ── Barre de recherche ──────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={15}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-          />
-          <input
-            type="text"
-            placeholder="Rechercher par nom, téléphone, CIN…"
-            className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {/* Filtres */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Rechercher un client..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => setShowFiltersModal(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Filter size={16} />
+            Filtres
+          </button>
         </div>
-        <button
-          onClick={() => setShowFiltersModal(true)}
-          className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition"
-        >
-          <Filter size={14} /> Filtres
-        </button>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-4 py-2.5 rounded-xl transition"
-        >
-          <Download size={14} /> Exporter
-        </button>
       </div>
 
-      {/* ── Tableau ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Tableau */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -412,7 +545,6 @@ const Clients = () => {
                   { label: "Localisation", cls: "text-left" },
                   { label: "CIN", cls: "text-left" },
                   { label: "Commandes", cls: "text-center" },
-                  { label: "Dépensé", cls: "text-right" },
                   { label: "Actions", cls: "text-center" },
                 ].map((col) => (
                   <th
@@ -424,72 +556,90 @@ const Clients = () => {
                 ))}
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((client) => (
+            <tbody>
+              {filtered.map((client, idx) => (
                 <tr
                   key={client._id}
-                  className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
-                  onClick={() => setSelectedClientId(client._id)}
+                  className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
+                    idx === 0 ? "border-t-0" : ""
+                  }`}
                 >
                   {/* Client */}
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
                       <Avatar prenom={client.prenom} nom={client.nom} />
                       <div>
-                        <div className="font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors">
+                        <div className="font-semibold text-slate-900">
                           {client.prenom} {client.nom}
                         </div>
-                        {client.statut === "vip" && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full mt-0.5">
-                            ⭐ VIP
-                          </span>
-                        )}
+                        <div className="text-xs text-slate-500">
+                          {client.dateInscription &&
+                            new Date(client.dateInscription).toLocaleDateString(
+                              "fr-FR",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                        </div>
                       </div>
                     </div>
                   </td>
 
                   {/* Contact */}
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                      <Phone size={12} className="text-slate-400" />
-                      {client.tel}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-xs mt-0.5">
-                      <Mail size={11} />
-                      {client.email || "—"}
-                    </div>
-                  </td>
-
-                  {/* Localisation */}
-                  <td className="px-4 py-3.5 text-slate-600">
-                    <div className="flex items-center gap-1">
-                      {client.quartier || client.adresse?.slice(0, 20) || "—"}
-                      {client.lat && client.lng && (
-                        <MapPin
-                          size={12}
-                          className="text-blue-500 ml-0.5"
-                          title="GPS"
-                        />
+                    <div className="space-y-1">
+                      {client.tel && (
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <Phone size={13} className="text-slate-400" />
+                          <span className="text-xs">{client.tel}</span>
+                        </div>
+                      )}
+                      {client.email && (
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <Mail size={13} className="text-slate-400" />
+                          <span className="text-xs truncate max-w-[150px]">
+                            {client.email}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </td>
 
-                  {/* CIN */}
-                  <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
-                    {client.cinNum || "—"}
+                  {/* Localisation */}
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <MapPin size={13} className="text-slate-400" />
+                      <span className="text-xs">{client.quartier}</span>
+                    </div>
                   </td>
 
-                  {/* Commandes */}
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
-                      {client.commandes || 0}
+                  {/* CIN */}
+                  <td className="px-4 py-3.5">
+                    <span className="text-xs text-slate-600 font-mono">
+                      {client.cinNum || "-"}
                     </span>
                   </td>
 
-                  {/* Dépensé */}
-                  <td className="px-4 py-3.5 text-right font-semibold text-emerald-700 tabular-nums">
-                    {(client.totalDepense || 0).toLocaleString("fr-MA")} MAD
+                  {/* Commandes */}
+                  <td className="px-4 py-3.5">
+                    {client.commandes > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {client.commandesList.map((cmd, i) => (
+                          <div
+                            key={i}
+                            className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-100"
+                          >
+                            {cmd.equipementNom || cmd.numero}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-xs font-medium">
+                        Pas de commande
+                      </span>
+                    )}
                   </td>
 
                   {/* Actions */}
@@ -520,7 +670,7 @@ const Clients = () => {
                           e.stopPropagation();
                           handleDelete(client._id);
                         }}
-                        className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 transition"
+                        className="p-1.5 rounded-lg border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-700 transition"
                         title="Supprimer"
                       >
                         <Trash2 size={14} />
@@ -529,704 +679,409 @@ const Clients = () => {
                   </td>
                 </tr>
               ))}
-
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="py-16 text-center">
-                    <div className="text-3xl mb-2">🔍</div>
-                    <div className="text-slate-400 text-sm">
-                      Aucun client trouvé
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ── Modal d'ajout ───────────────────────────────────────── */}
+      {/* Modal d'ajout */}
       {showAddModal && (
-        <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowAddModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-900">
-                  Nouveau client
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Remplissez les informations du dossier
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 transition"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div className="p-6 space-y-6">
-              {/* Section Identité */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Identité
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={fieldLabel}>
-                      Prénom <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={fieldInput}
-                      value={newClient.prenom}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, prenom: e.target.value })
-                      }
-                      placeholder="Youssef"
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>
-                      Nom <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={fieldInput}
-                      value={newClient.nom}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, nom: e.target.value })
-                      }
-                      placeholder="Benali"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section Contact */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Contact
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className={fieldLabel}>
-                      Téléphone <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      className={fieldInput}
-                      value={newClient.tel}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, tel: e.target.value })
-                      }
-                      placeholder="06 xx xx xx xx"
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>Email</label>
-                    <input
-                      type="email"
-                      className={fieldInput}
-                      value={newClient.email}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, email: e.target.value })
-                      }
-                      placeholder="exemple@email.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className={fieldLabel}>Date de naissance</label>
-                    <input
-                      type="date"
-                      className={fieldInput}
-                      value={newClient.dateNaiss}
-                      onChange={(e) =>
-                        setNewClient({
-                          ...newClient,
-                          dateNaiss: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>Quartier</label>
-                    <select
-                      className={fieldInput}
-                      value={newClient.quartier}
-                      onChange={(e) =>
-                        setNewClient({ ...newClient, quartier: e.target.value })
-                      }
-                    >
-                      {[
-                        "Maarif",
-                        "Anfa",
-                        "Hay Hassani",
-                        "Ain Chock",
-                        "Californie",
-                        "Sidi Maarouf",
-                        "Ain Sebaa",
-                        "Autre",
-                      ].map((q) => (
-                        <option key={q}>{q}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>Adresse complète</label>
-                  <input
-                    type="text"
-                    className={fieldInput}
-                    value={newClient.adresse}
-                    onChange={(e) =>
-                      setNewClient({ ...newClient, adresse: e.target.value })
-                    }
-                    placeholder="N° rue, nom de la rue"
-                  />
-                </div>
-              </div>
-
-              {/* Section CIN */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Carte Nationale d'Identité
-                </p>
-                <div className="bg-amber-50 border border-amber-200/70 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-amber-700 text-sm font-bold mb-3">
-                    🪪 CIN
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1.5">
-                        Numéro CIN
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-amber-200 rounded-xl px-3 py-2.5 text-sm font-mono bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition placeholder:text-slate-300"
-                        value={newClient.cinNum}
-                        onChange={(e) =>
-                          setNewClient({ ...newClient, cinNum: e.target.value })
-                        }
-                        placeholder="ex: BE123456"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1.5">
-                        Date d'expiration
-                      </label>
-                      <input
-                        type="month"
-                        className="w-full border border-amber-200 rounded-xl px-3 py-2.5 text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
-                        value={newClient.cinExp}
-                        onChange={(e) =>
-                          setNewClient({ ...newClient, cinExp: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section GPS */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Localisation GPS
-                </p>
-                <div className="bg-blue-50 border border-blue-200/70 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-blue-700 text-sm font-bold mb-3">
-                    <MapPin size={14} /> Position Waze
-                  </div>
-                  <div className="bg-white rounded-xl border border-blue-100 overflow-hidden">
-                    <div
-                      className="h-40 cursor-crosshair"
-                      onClick={handleMapClick}
-                    >
-                      <svg
-                        width="100%"
-                        height="100%"
-                        viewBox="0 0 500 160"
-                        preserveAspectRatio="none"
-                      >
-                        <rect width="500" height="160" fill="#E0F7FA" />
-                        <rect
-                          x="0"
-                          y="53"
-                          width="500"
-                          height="5"
-                          fill="white"
-                          opacity="0.8"
-                        />
-                        <rect
-                          x="0"
-                          y="107"
-                          width="500"
-                          height="5"
-                          fill="white"
-                          opacity="0.8"
-                        />
-                        <rect
-                          x="125"
-                          y="0"
-                          width="5"
-                          height="160"
-                          fill="white"
-                          opacity="0.8"
-                        />
-                        <rect
-                          x="250"
-                          y="0"
-                          width="3"
-                          height="160"
-                          fill="white"
-                          opacity="0.8"
-                        />
-                        <rect
-                          x="375"
-                          y="0"
-                          width="5"
-                          height="160"
-                          fill="white"
-                          opacity="0.8"
-                        />
-                        {newCoords.lat && newCoords.lng && (
-                          <g
-                            transform={`translate(${((newCoords.lng + 7.75) / 0.3) * 500}, ${((33.65 - newCoords.lat) / 0.3) * 160})`}
-                          >
-                            <path
-                              d="M0 28 Q-14 8,-14 -2 A14 14 0 0 1 14 -2 Q14 8 0 28Z"
-                              fill="#EF4444"
-                            />
-                            <circle
-                              cx="0"
-                              cy="-2"
-                              r="7"
-                              fill="white"
-                              opacity="0.95"
-                            />
-                            <circle cx="0" cy="-2" r="4" fill="#EF4444" />
-                          </g>
-                        )}
-                      </svg>
-                    </div>
-                    <div className="p-2 flex gap-2 border-t border-blue-50">
-                      <input
-                        type="text"
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition placeholder:text-slate-300"
-                        placeholder="Latitude, Longitude"
-                        value={coordInput}
-                        onChange={(e) => updateCoords(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={getCurrentPosition}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1"
-                      >
-                        <MapPin size={11} /> Ma position
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-blue-500 mt-2">
-                    Cliquez sur la carte pour définir la position exacte du
-                    client.
-                  </p>
-                </div>
-              </div>
-
-              {/* Note */}
-              <div>
-                <label className={fieldLabel}>Note</label>
-                <textarea
-                  rows="3"
-                  className={`${fieldInput} resize-none`}
-                  value={newClient.note}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, note: e.target.value })
-                  }
-                  placeholder="Informations complémentaires…"
-                />
-              </div>
-            </div>
-
-            {/* Modal footer */}
-            <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-100 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAddClient}
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-md shadow-emerald-100 transition-all"
-              >
-                Créer le dossier client
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modale des filtres ─────────────────────────────────────── */}
-      {showFiltersModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">Filtres</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Nouveau client
+                </h3>
                 <button
-                  onClick={() => setShowFiltersModal(false)}
-                  className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition"
                 >
-                  <X size={16} className="text-slate-500" />
+                  <X size={16} />
                 </button>
               </div>
             </div>
 
             <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Prénom *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClient.prenom}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, prenom: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Nom *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClient.nom}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, nom: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Téléphone *
+                  </label>
+                  <input
+                    type="tel"
+                    value={newClient.tel}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, tel: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newClient.email}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Quartier
                 </label>
                 <select
-                  value={filters.quartier}
+                  value={newClient.quartier}
                   onChange={(e) =>
-                    handleFilterChange("quartier", e.target.value)
+                    setNewClient({ ...newClient, quartier: e.target.value })
                   }
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 >
-                  <option value="">Tous les quartiers</option>
                   <option value="Maarif">Maarif</option>
                   <option value="Gueliz">Gueliz</option>
-                  <option value="Casablanca">Casablanca</option>
+                  <option value="Agdal">Agdal</option>
                   <option value="Rabat">Rabat</option>
+                  <option value="Casablanca">Casablanca</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Documents
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Adresse
                 </label>
-                <select
-                  value={filters.hasDocuments}
+                <textarea
+                  value={newClient.adresse}
                   onChange={(e) =>
-                    handleFilterChange("hasDocuments", e.target.value)
+                    setNewClient({ ...newClient, adresse: e.target.value })
                   }
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                >
-                  <option value="">Tous les clients</option>
-                  <option value="yes">Avec documents</option>
-                  <option value="no">Sans documents</option>
-                </select>
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    CIN
+                  </label>
+                  <input
+                    type="text"
+                    value={newClient.cinNum}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, cinNum: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date d'expiration
+                  </label>
+                  <input
+                    type="date"
+                    value={newClient.cinExp}
+                    onChange={(e) =>
+                      setNewClient({ ...newClient, cinExp: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={newClient.note}
+                  onChange={(e) =>
+                    setNewClient({ ...newClient, note: e.target.value })
+                  }
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Coordonnées GPS
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={coordInput}
+                    onChange={updateCoords}
+                    placeholder="33.12345, -7.12345"
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={getCurrentPosition}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    📍
+                  </button>
+                  <button
+                    onClick={handleMapClick}
+                    className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition"
+                  >
+                    🗺️
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 flex gap-3">
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
               <button
-                onClick={clearFilters}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition"
               >
-                Réinitialiser
+                Annuler
               </button>
               <button
-                onClick={() => setShowFiltersModal(false)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition"
+                onClick={handleAddClient}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
               >
-                Appliquer
+                Créer le client
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Modal d'édition ───────────────────────────────────────── */}
+      {/* Modal d'édition */}
       {showEditModal && editClient && (
-        <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowEditModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-900">
-                  Modifier client
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {editClient.prenom} {editClient.nom}
-                </p>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-100">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Modifier le client
+                </h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 transition"
-              >
-                <X size={16} />
-              </button>
             </div>
 
-            {/* Modal body */}
-            <div className="p-6 space-y-6">
-              {/* Section Identité */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Identité
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={fieldLabel}>
-                      Prénom <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={fieldInput}
-                      value={editClient.prenom}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, prenom: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>
-                      Nom <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={fieldInput}
-                      value={editClient.nom}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, nom: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section Contact */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Contact
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className={fieldLabel}>
-                      Téléphone <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      className={fieldInput}
-                      value={editClient.tel}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, tel: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>Email</label>
-                    <input
-                      type="email"
-                      className={fieldInput}
-                      value={editClient.email || ""}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, email: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className={fieldLabel}>Date de naissance</label>
-                    <input
-                      type="date"
-                      className={fieldInput}
-                      value={editClient.dateNaiss ? editClient.dateNaiss.slice(0, 10) : ""}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, dateNaiss: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className={fieldLabel}>Quartier</label>
-                    <select
-                      className={fieldInput}
-                      value={editClient.quartier || "Maarif"}
-                      onChange={(e) =>
-                        setEditClient({ ...editClient, quartier: e.target.value })
-                      }
-                    >
-                      {[
-                        "Maarif",
-                        "Anfa",
-                        "Hay Hassani",
-                        "Ain Chock",
-                        "Californie",
-                        "Sidi Maarouf",
-                        "Ain Sebaa",
-                        "Autre",
-                      ].map((q) => (
-                        <option key={q}>{q}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={fieldLabel}>Adresse complète</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Prénom *
+                  </label>
                   <input
                     type="text"
-                    className={fieldInput}
-                    value={editClient.adresse || ""}
+                    value={editClient.prenom}
                     onChange={(e) =>
-                      setEditClient({ ...editClient, adresse: e.target.value })
+                      setEditClient({ ...editClient, prenom: e.target.value })
                     }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Nom *
+                  </label>
+                  <input
+                    type="text"
+                    value={editClient.nom}
+                    onChange={(e) =>
+                      setEditClient({ ...editClient, nom: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
-              {/* Section CIN */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Carte Nationale d&apos;Identité
-                </p>
-                <div className="bg-amber-50 border border-amber-200/70 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-amber-700 text-sm font-bold mb-3">
-                    🪪 CIN
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1.5">
-                        Numéro CIN
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-amber-200 rounded-xl px-3 py-2.5 text-sm font-mono bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
-                        value={editClient.cinNum || ""}
-                        onChange={(e) =>
-                          setEditClient({ ...editClient, cinNum: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1.5">
-                        Date d&apos;expiration
-                      </label>
-                      <input
-                        type="month"
-                        className="w-full border border-amber-200 rounded-xl px-3 py-2.5 text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
-                        value={editClient.cinExp || ""}
-                        onChange={(e) =>
-                          setEditClient({ ...editClient, cinExp: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Téléphone *
+                  </label>
+                  <input
+                    type="tel"
+                    value={editClient.tel}
+                    onChange={(e) =>
+                      setEditClient({ ...editClient, tel: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editClient.email}
+                    onChange={(e) =>
+                      setEditClient({ ...editClient, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
                 </div>
               </div>
 
-              {/* Section GPS */}
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 pb-2 border-b border-slate-100">
-                  Localisation GPS
-                </p>
-                <div className="bg-blue-50 border border-blue-200/70 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-blue-700 text-sm font-bold mb-3">
-                    <MapPin size={14} /> Position Waze
-                  </div>
-                  <div className="bg-white rounded-xl border border-blue-100 overflow-hidden">
-                    <div
-                      className="h-40 cursor-crosshair"
-                      onClick={handleEditMapClick}
-                    >
-                      <svg
-                        width="100%"
-                        height="100%"
-                        viewBox="0 0 500 160"
-                        preserveAspectRatio="none"
-                      >
-                        <rect width="500" height="160" fill="#E0F7FA" />
-                        <rect x="0" y="53" width="500" height="5" fill="white" opacity="0.8" />
-                        <rect x="0" y="107" width="500" height="5" fill="white" opacity="0.8" />
-                        <rect x="125" y="0" width="5" height="160" fill="white" opacity="0.8" />
-                        <rect x="250" y="0" width="3" height="160" fill="white" opacity="0.8" />
-                        <rect x="375" y="0" width="5" height="160" fill="white" opacity="0.8" />
-                        {editCoords.lat && editCoords.lng && (
-                          <g
-                            transform={`translate(${((editCoords.lng + 7.75) / 0.3) * 500}, ${((33.65 - editCoords.lat) / 0.3) * 160})`}
-                          >
-                            <path d="M0 28 Q-14 8,-14 -2 A14 14 0 0 1 14 -2 Q14 8 0 28Z" fill="#EF4444" />
-                            <circle cx="0" cy="-2" r="7" fill="white" opacity="0.95" />
-                            <circle cx="0" cy="-2" r="4" fill="#EF4444" />
-                          </g>
-                        )}
-                      </svg>
-                    </div>
-                    <div className="p-2 flex gap-2 border-t border-blue-50">
-                      <input
-                        type="text"
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        placeholder="Latitude, Longitude"
-                        value={editCoordInput}
-                        onChange={(e) => updateEditCoords(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={getEditCurrentPosition}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1"
-                      >
-                        <MapPin size={11} /> Ma position
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Quartier
+                </label>
+                <select
+                  value={editClient.quartier}
+                  onChange={(e) =>
+                    setEditClient({ ...editClient, quartier: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="Maarif">Maarif</option>
+                  <option value="Gueliz">Gueliz</option>
+                  <option value="Agdal">Agdal</option>
+                  <option value="Rabat">Rabat</option>
+                  <option value="Casablanca">Casablanca</option>
+                </select>
               </div>
 
-              {/* Note */}
               <div>
-                <label className={fieldLabel}>Note</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Adresse
+                </label>
                 <textarea
-                  rows="3"
-                  className={`${fieldInput} resize-none`}
-                  value={editClient.note || ""}
+                  value={editClient.adresse}
+                  onChange={(e) =>
+                    setEditClient({ ...editClient, adresse: e.target.value })
+                  }
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    CIN
+                  </label>
+                  <input
+                    type="text"
+                    value={editClient.cinNum}
+                    onChange={(e) =>
+                      setEditClient({ ...editClient, cinNum: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date d'expiration
+                  </label>
+                  <input
+                    type="date"
+                    value={editClient.cinExp}
+                    onChange={(e) =>
+                      setEditClient({ ...editClient, cinExp: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={editClient.note}
                   onChange={(e) =>
                     setEditClient({ ...editClient, note: e.target.value })
                   }
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Coordonnées GPS
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editCoordInput}
+                    onChange={updateEditCoords}
+                    placeholder="33.12345, -7.12345"
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={getEditCurrentPosition}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    📍
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Modal footer */}
-            <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-100 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition"
               >
                 Annuler
               </button>
               <button
                 onClick={handleUpdateClient}
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-md shadow-emerald-100 transition-all"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
               >
-                Enregistrer les modifications
+                Mettre à jour
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de visualisation */}
+      {selectedClientId && (
+        <ClientProfile
+          clientId={selectedClientId}
+          onClose={() => setSelectedClientId(null)}
+        />
       )}
     </div>
   );
