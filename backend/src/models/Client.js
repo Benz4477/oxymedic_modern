@@ -2,17 +2,63 @@ import mongoose from "mongoose";
 
 const clientSchema = new mongoose.Schema(
   {
-    prenom: { type: String, required: true, trim: true },
-    nom: { type: String, required: true, trim: true },
-    tel: { type: String, required: true, trim: true },
-    email: { type: String, default: "", trim: true },
-    dateNaiss: { type: Date, default: null },
-    quartier: { type: String, default: "", trim: true },
-    adresse: { type: String, default: "", trim: true },
-    lat: { type: Number, default: 0 },
-    lng: { type: Number, default: 0 },
-    cinNum: { type: String, default: "", trim: true },
-    cinExp: { type: String, default: "", trim: true }, // format "MM/YYYY"
+    prenom: { 
+      type: String,
+      required: true,
+      trim: true
+     },
+
+    nom: { 
+      type: String,
+      required: true,
+      trim: true
+     },
+
+    tel: { 
+      type: String,
+      required: true,
+      trim: true
+     },
+
+    email: { 
+      type: String,
+      default: "",
+      trim: true 
+    },
+
+    dateNaiss: { 
+      type: Date,
+      default: null 
+    },
+    quartier: { 
+      type: String,
+      default: "",
+      trim: true
+     },
+
+    adresse: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    lat: { 
+      type: Number,
+      default: 0 
+    },
+    lng: { 
+      type: Number,
+      default: 0 
+    },
+    cinNum: { 
+      type: String,
+      default: "",
+      trim: true 
+    },
+    cinExp: { 
+      type: String,
+      default: "",
+      trim: true 
+    }, // format "MM/YYYY"
     docs: {
       cin_r: { type: String, default: "" },
       cin_v: { type: String, default: "" },

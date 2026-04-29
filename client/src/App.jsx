@@ -15,7 +15,7 @@ import "react-toastify/dist/ReactToastify.css";
 // Import des pages (modules)
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients/Clients";
-import CRM from "./pages/CRM";
+import CRM from "./pages/CRM/CRM";
 import Pipeline from "./pages/Pipeline";
 import Devis from "./pages/Devis/Devis";
 import Fidelite from "./pages/Fidelite";
