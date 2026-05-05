@@ -88,4 +88,4 @@ client/package-lock.json
 client/.env.examplea
 !client/src/
 !client/src/**/*
-!client/public/
+!client/public/.env.example
