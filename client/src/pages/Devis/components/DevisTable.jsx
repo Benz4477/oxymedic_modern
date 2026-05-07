@@ -1,19 +1,12 @@
-// src/pages/Devis/components/DevisTable.jsx
 import React from "react";
-import { Eye, Edit, Send, CheckCircle, Printer, Copy, Trash2, Calendar } from "lucide-react";
+import { Edit, Trash2, Send, Check, X, ArrowRight, Eye } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 
-const DevisTable = ({ devis, onView, onEdit, onSend, onConvert, onPrint, onDuplicate, onDelete }) => {
-  const getDaysLeft = (dateValidite) => {
-    if (!dateValidite) return null;
-    const parts = dateValidite.split("/");
-    const validite = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    const today = new Date();
-    const diff = Math.ceil((validite - today) / (1000 * 60 * 60 * 24));
-    return diff;
-  };
+const fmtMad  = (n) => `${(n || 0).toLocaleString("fr-FR")} MAD`;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("fr-FR") : "—";
 
-  if (devis.length === 0) {
+const DevisTable = ({ devis, onView, onEdit, onSend, onAccept, onReject, onDelete, onConvert }) => {
+  if (!devis || devis.length === 0) {
     return (
       <div className="py-16 text-center">
         <div className="text-3xl mb-2">📄</div>
@@ -27,49 +20,69 @@ const DevisTable = ({ devis, onView, onEdit, onSend, onConvert, onPrint, onDupli
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100 bg-slate-50/80">
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Référence</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Client</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date création</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Validité</th>
-            <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Montant</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Statut</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
+            {["Référence", "Client", "Objet", "Date", "Validité", "Montant TTC", "Statut", "Actions"].map((h) => (
+              <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">{h}</th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
           {devis.map((d) => {
-            const daysLeft = getDaysLeft(d.dateValidite);
-            const isExpired = daysLeft !== null && daysLeft < 0;
+            const clientNom = d.clientNom || (d.client ? `${d.client.prenom} ${d.client.nom}` : "—");
+            const isExpired = d.dateValidite && new Date(d.dateValidite) < new Date() && d.status !== "converted";
             return (
-              <tr key={d.id} className="hover:bg-slate-50/70 cursor-pointer transition-colors group" onClick={() => onView(d)}>
+              <tr key={d._id} className="hover:bg-slate-50/70 transition-colors">
                 <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-600">{d.reference}</td>
-                <td className="px-4 py-3 font-medium text-slate-800">{d.client}</td>
-                <td className="px-4 py-3 text-slate-500 text-xs">{d.dateCreation}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <Calendar size={12} className="text-slate-400" />
-                    <span className="text-xs text-slate-600">{d.dateValidite}</span>
-                    {!isExpired && daysLeft !== null && daysLeft <= 7 && daysLeft > 0 && (
-                      <span className="text-[9px] text-amber-600 font-bold ml-1">({daysLeft}j)</span>
-                    )}
-                    {isExpired && <span className="text-[9px] text-red-500 font-bold ml-1">Expiré</span>}
-                  </div>
+                <td className="px-4 py-3 font-medium text-slate-800">{clientNom}</td>
+                <td className="px-4 py-3 text-slate-500 text-xs max-w-[140px] truncate">{d.description || "—"}</td>
+                <td className="px-4 py-3 text-slate-500 text-xs">{fmtDate(d.date)}</td>
+                <td className={`px-4 py-3 text-xs font-medium ${isExpired ? "text-red-500" : "text-slate-500"}`}>
+                  {fmtDate(d.dateValidite)} {isExpired && "⚠️"}
                 </td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">{d.montant.toLocaleString()} MAD</td>
-                <td className="px-4 py-3"><StatusBadge status={d.statut} expired={isExpired} /></td>
+                <td className="px-4 py-3 font-mono font-bold text-slate-800">{fmtMad(d.montantTTC)}</td>
+                <td className="px-4 py-3"><StatusBadge status={d.status} /></td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button onClick={() => onView(d)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Voir"><Eye size={14} /></button>
-                    <button onClick={() => onEdit(d)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Modifier"><Edit size={14} /></button>
-                    <button onClick={() => onPrint(d)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Imprimer"><Printer size={14} /></button>
-                    <button onClick={() => onDuplicate(d)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Dupliquer"><Copy size={14} /></button>
-                    {d.statut === "draft" && (
-                      <button onClick={() => onSend(d)} className="p-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50" title="Envoyer"><Send size={14} /></button>
+                  <div className="flex items-center gap-1">
+                    {/* Voir */}
+                    <button onClick={() => onView(d)} title="Voir"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition">
+                      <Eye size={13} />
+                    </button>
+                    {!["converted"].includes(d.status) && (
+                      <button onClick={() => onEdit(d)} title="Modifier"
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition">
+                        <Edit size={13} />
+                      </button>
                     )}
-                    {(d.statut === "sent" || d.statut === "accepted") && (
-                      <button onClick={() => onConvert(d)} className="p-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50" title="Convertir en commande"><CheckCircle size={14} /></button>
+                    {d.status === "draft" && (
+                      <button onClick={() => onSend(d)} title="Envoyer"
+                        className="p-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition">
+                        <Send size={13} />
+                      </button>
                     )}
-                    <button onClick={() => onDelete(d.id)} className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50" title="Supprimer"><Trash2 size={14} /></button>
+                    {d.status === "sent" && (
+                      <>
+                        <button onClick={() => onAccept(d)} title="Accepter"
+                          className="p-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition">
+                          <Check size={13} />
+                        </button>
+                        <button onClick={() => onReject(d)} title="Refuser"
+                          className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 transition">
+                          <X size={13} />
+                        </button>
+                      </>
+                    )}
+                    {d.status === "accepted" && (
+                      <button onClick={() => onConvert(d)} title="Convertir en commande"
+                        className="p-1.5 rounded-lg border border-purple-200 text-purple-600 hover:bg-purple-50 transition">
+                        <ArrowRight size={13} />
+                      </button>
+                    )}
+                    {!["accepted"].includes(d.status) && (
+                      <button onClick={() => onDelete(d)} title="Supprimer"
+                        className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 transition">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

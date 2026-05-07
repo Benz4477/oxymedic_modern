@@ -1,41 +1,91 @@
-// Service pour la gestion des clients
+import api from "../api";
 
-class ClientService {
-  static BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const clientService = {
+  // Alias standard — utilisé par Clients.jsx, Facturation.jsx, etc.
+  getAll: async () => {
+    const response = await api.get("/clients");
+    return response.data.data;
+  },
 
-  static async getAllClients() {
-    try {
-      const response = await fetch(`${this.BASE_URL}/clients`);
-      const data = await response.json();
+  getAllClients: async () => {
+    const response = await api.get("/clients");
+    return response.data.data;
+  },
 
-      if (!data.success) {
-        throw new Error(
-          data.message || "Erreur lors de la récupération des clients",
-        );
-      }
+  getClientById: async (id) => {
+    const response = await api.get(`/clients/${id}`);
+    return response.data.data;
+  },
 
-      return data.data;
-    } catch (error) {
-      console.error("Erreur getAllClients:", error);
-      throw error;
-    }
-  }
+  createClient: async (clientData) => {
+    const response = await api.post("/clients", clientData);
+    return response.data.data;
+  },
 
-  static async getClientById(id) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/clients/${id}`);
-      const data = await response.json();
+  updateClient: async (id, clientData) => {
+    const response = await api.put(`/clients/${id}`, clientData);
+    return response.data.data;
+  },
 
-      if (!data.success) {
-        throw new Error(data.message || "Client non trouvé");
-      }
+  deleteClient: async (id) => {
+    const response = await api.delete(`/clients/${id}`);
+    return response.data;
+  },
 
-      return data.data;
-    } catch (error) {
-      console.error("Erreur getClientById:", error);
-      throw error;
-    }
-  }
-}
+  getClientStats: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/stats`);
+    return response.data.data;
+  },
 
-export default ClientService;
+  getClientDocuments: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/documents`);
+    return response.data.data;
+  },
+
+  getClientHistory: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/history`);
+    return response.data.data;
+  },
+
+  addDocument: async (clientId, documentData) => {
+    const formData = new FormData();
+    formData.append("type", documentData.type);
+    if (documentData.file) formData.append("document", documentData.file);
+    const response = await api.post(`/clients/${clientId}/documents`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data;
+  },
+
+  contactClient: async (clientId, contactData) => {
+    const response = await api.post(`/clients/${clientId}/contact`, contactData);
+    return response.data.data;
+  },
+
+  searchClients: async (query) => {
+    const response = await api.get(`/clients/search?q=${encodeURIComponent(query)}`);
+    return response.data.data;
+  },
+
+  getActiveClients: async () => {
+    const response = await api.get("/clients?status=active");
+    return response.data.data;
+  },
+
+  getClientCautions: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/cautions`);
+    return response.data;
+  },
+
+  getClientPaiements: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/paiements`);
+    return response.data;
+  },
+
+  getClientFidelite: async (clientId) => {
+    const response = await api.get(`/clients/${clientId}/fidelite`);
+    return response.data;
+  },
+};
+
+export default clientService;

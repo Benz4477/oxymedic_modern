@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 
 const equipementSchema = new mongoose.Schema(
   {
+    // ID numérique auto-incrémenté
+    id: { type: Number, required: true, unique: true },
+    
     // Identification
     name: { type: String, required: true },
     cat: { type: String, required: true }, // catégorie principale
@@ -31,7 +34,8 @@ const equipementSchema = new mongoose.Schema(
     archived: { type: Boolean, default: false },
 
     // Médias et description
-    photo: { type: String, default: "" }, // base64 ou URL
+    photo: { type: String, default: "" }, // URL Cloudinary ou base64
+    photoPublicId: { type: String, default: "" }, // ID Cloudinary pour suppression
     desc: { type: String, default: "" },
   },
   {

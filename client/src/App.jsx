@@ -13,7 +13,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Import des pages (modules)
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Dashboard/Dashboard";
 import Clients from "./pages/Clients/Clients";
 import CRM from "./pages/CRM/CRM";
 import Pipeline from "./pages/Pipeline";
@@ -30,7 +30,7 @@ import Stock from "./pages/Stock";
 import Serials from "./pages/Serials/Serials";
 import Consommables from "./pages/Consommables";
 import Facturation from "./pages/Facturation/Facturation";
-import Paiements from "./pages/Paiements";
+import Paiements from "./pages/Paiements/Paiements";
 import Catalogue from "./pages/Produits";
 import ProdList from "./pages/Parametres";
 import Scanner from "./pages/Scanner";
@@ -42,6 +42,7 @@ import Access from "./pages/DroitsAcces";
 import Users from "./pages/Users";
 import Categories from "./pages/Categories/Categories";
 import Commandes from "./pages/Commandes/Commandes";
+import Societe from "./pages/societe/Societe";
 
 // Constante pour les routes de l'application (sous /app)
 const appRoutes = [
@@ -75,6 +76,7 @@ const appRoutes = [
   { path: "apparence", element: <Apparence /> },
   { path: "access", element: <Access /> },
   { path: "users", element: <Users /> },
+  { path: "societe", element: <Societe /> },
 ];
 
 function App() {

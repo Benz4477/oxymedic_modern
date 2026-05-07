@@ -1,9 +1,18 @@
-// src/pages/Commandes/components/CommandeTable.jsx
 import React from "react";
 import StatusBadge from "./StatusBadge";
 import CommandeActions from "./CommandeActions";
 
-const CommandeTable = ({ commandes, onRowClick, onReconduire, onDevis, onEdit, onReceipt, onStatusChange, onDelete }) => {
+const fmt = (date) => {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+};
+
+const CommandeTable = ({
+  commandes, onReconduire,
+  onEdit, onReceipt, onStatusChange, onDelete,
+}) => {
   if (commandes.length === 0) {
     return (
       <div className="py-16 text-center">
@@ -30,29 +39,65 @@ const CommandeTable = ({ commandes, onRowClick, onReconduire, onDevis, onEdit, o
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
-          {commandes.map((cmd) => (
-            <tr key={cmd.id} className="hover:bg-slate-50/70 cursor-pointer transition-colors group" onClick={() => onRowClick(cmd)}>
-              <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-600">{cmd.ref}</td>
-              <td className="px-4 py-3 font-medium text-slate-800">{cmd.client}</td>
-              <td className="px-4 py-3 text-slate-600">{cmd.equipement}</td>
-              <td className="px-4 py-3 font-mono text-xs text-purple-600">{cmd.unitSerial || "—"}</td>
-              <td className="px-4 py-3 text-xs text-slate-500">{cmd.start} → {cmd.end}</td>
-              <td className="px-4 py-3"><StatusBadge status={cmd.status} /></td>
-              <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">{(cmd.amountTTC || 0).toLocaleString()} MAD</td>
-              <td className="px-4 py-3 text-right font-mono text-sm text-amber-600">{cmd.caution && cmd.caution !== 0 ? cmd.caution.toLocaleString() + " MAD" : "—"}</td>
-              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                <CommandeActions
-                  commande={cmd}
-                  onReconduire={onReconduire}
-                  onDevis={onDevis}
-                  onEdit={onEdit}
-                  onReceipt={onReceipt}
-                  onStatusChange={onStatusChange}
-                  onDelete={onDelete}
-                />
-              </td>
-            </tr>
-          ))}
+          {commandes.map((cmd) => {
+            // Client — objet populé ou string
+            const clientNom = cmd.client
+              ? typeof cmd.client === "object"
+                ? `${cmd.client.prenom} ${cmd.client.nom}`
+                : cmd.client
+              : "—";
+
+            // Équipement — objet populé ou string
+            const equipNom = cmd.equipement
+              ? typeof cmd.equipement === "object"
+                ? `${cmd.equipement.icon || ""} ${cmd.equipement.name}`
+                : cmd.equipement
+              : "—";
+
+            // Unité — objet populé ou string
+            const unitSerial = cmd.unite
+              ? typeof cmd.unite === "object"
+                ? cmd.unite.serial
+                : cmd.unite
+              : "—";
+
+            return (
+              <tr
+                key={cmd._id}
+                className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
+                onClick={() => onEdit(cmd)}
+              >
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-600">
+                  {cmd.reference || "—"}
+                </td>
+                <td className="px-4 py-3 font-medium text-slate-800">{clientNom}</td>
+                <td className="px-4 py-3 text-slate-600">{equipNom}</td>
+                <td className="px-4 py-3 font-mono text-xs text-purple-600">{unitSerial}</td>
+                <td className="px-4 py-3 text-xs text-slate-500">
+                  {fmt(cmd.dateDebut)} → {fmt(cmd.dateFin)}
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={cmd.statut} />
+                </td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700">
+                  {(cmd.montantTTC || 0).toLocaleString()} MAD
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-sm text-amber-600">
+                  {cmd.montantCaution ? `${cmd.montantCaution.toLocaleString()} MAD` : "—"}
+                </td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <CommandeActions
+                    commande={cmd}
+                    onReconduire={onReconduire}
+                    onEdit={onEdit}
+                    onReceipt={onReceipt}
+                    onStatusChange={onStatusChange}
+                    onDelete={onDelete}
+                  />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

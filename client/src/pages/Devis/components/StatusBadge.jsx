@@ -1,26 +1,18 @@
-// src/pages/Devis/components/StatusBadge.jsx
-import { Send, CheckCircle, AlertTriangle, Clock, FileText } from "lucide-react";
+import React from "react";
 
-const StatusBadge = ({ status, expired }) => {
-  if (expired && status !== "accepted") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
-        <AlertTriangle size={10} /> Expiré
-      </span>
-    );
-  }
-
-  const config = {
-    draft: { label: "Brouillon", icon: <FileText size={10} />, className: "bg-slate-100 text-slate-600" },
-    sent: { label: "Envoyé", icon: <Send size={10} />, className: "bg-amber-100 text-amber-700" },
-    accepted: { label: "Accepté", icon: <CheckCircle size={10} />, className: "bg-emerald-100 text-emerald-700" },
-    refused: { label: "Refusé", icon: <AlertTriangle size={10} />, className: "bg-red-100 text-red-600" },
-    expired: { label: "Expiré", icon: <Clock size={10} />, className: "bg-red-100 text-red-600" },
+const StatusBadge = ({ status }) => {
+  const map = {
+    draft:     { label: "Brouillon", cls: "bg-slate-100 text-slate-600" },
+    sent:      { label: "Envoyé",    cls: "bg-blue-100 text-blue-700" },
+    accepted:  { label: "Accepté",   cls: "bg-emerald-100 text-emerald-700" },
+    rejected:  { label: "Refusé",    cls: "bg-red-100 text-red-700" },
+    expired:   { label: "Expiré",    cls: "bg-orange-100 text-orange-700" },
+    converted: { label: "Converti",  cls: "bg-purple-100 text-purple-700" },
   };
-  const { label, icon, className } = config[status] || config.draft;
+  const s = map[status] || { label: status, cls: "bg-slate-100 text-slate-600" };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${className}`}>
-      {icon} {label}
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${s.cls}`}>
+      {s.label}
     </span>
   );
 };

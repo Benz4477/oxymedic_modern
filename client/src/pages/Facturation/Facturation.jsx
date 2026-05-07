@@ -1,285 +1,210 @@
-﻿// src/pages/Facturation/Facturation.jsx
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
-import FactureStats from "./components/FactureStats";
-import FactureFilters from "./components/FactureFilters";
-import FactureTable from "./components/FactureTable";
-import FactureModal from "./components/FactureModal";
-import FactureViewModal from "./components/FactureViewModal";
-import factureService from "./services/factureService";
-import ClientService from "../../services/clientService";
-import CommandeService from "../../services/commandeService";
 import { toast } from "react-toastify";
+import FactureStats     from "./components/FactureStats";
+import FactureFilters   from "./components/FactureFilters";
+import FactureTable     from "./components/FactureTable";
+import FactureModal     from "./components/FactureModal";
+import FactureViewModal from "./components/FactureViewModal";
+import FacturePayerModal from "./components/FacturePayerModal";
+import factureService  from "./services/factureService";
+import clientService   from "../../services/clientService";
+import commandeService from "../../services/commandeService";
+import api             from "../../api";
+
+const EMPTY_FORM = {
+  client: "", clientNom: "", clientEmail: "", clientAdresse: "",
+  commande: "", date: new Date().toISOString().split("T")[0],
+  dateEcheance: "", type: "facture", status: "draft",
+  lignes: [], remiseGlobale: 0, tvaGlobale: 20,
+  montantHT: 0, montantTVA: 0, montantTTC: 0,
+  montantPaye: 0, montantRestant: 0, notes: "",
+};
 
 const Facturation = () => {
-  const [factures, setFactures] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [commandes, setCommandes] = useState([]);
+  const [factures, setFactures]     = useState([]);
+  const [stats, setStats]           = useState({});
+  const [clients, setClients]       = useState([]);
+  const [commandes, setCommandes]   = useState([]);
+  const [societe, setSociete]       = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal]   = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPayerModal, setShowPayerModal] = useState(false);
   const [selectedFacture, setSelectedFacture] = useState(null);
-  const [modePaiement, setModePaiement] = useState(""); // Champ séparé pour le mode de paiement
+  const [factureAPayer, setFactureAPayer]     = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [loading, setLoading]   = useState(true);
 
-  const [formData, setFormData] = useState({
-    num: "",
-    clientNom: "",
-    clientEmail: "",
-    clientAdresse: "",
-    clientId: "",
-    date: new Date().toISOString().split("T")[0],
-    dateEcheance: "",
-    type: "facture",
-    status: "draft",
-    lignes: [],
-    remiseGlobale: 0,
-    tvaGlobale: 20,
-    montantHT: 0,
-    montantTVA: 0,
-    montantTTC: 0,
-    montantPaye: 0,
-    montantRestant: 0,
-    notes: "",
-    cmdRef: "",
-  });
-
-  useEffect(() => {
-    loadClients();
-    loadCommandes();
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [facturesRes, clientsData, commandesData, societeData] = await Promise.all([
+        factureService.getFactures(),
+        clientService.getAll(),
+        commandeService.getAll(),
+        api.get("/societe").then(r => r.data?.data || r.data).catch(() => ({})),
+      ]);
+      setFactures(facturesRes.data || []);
+      setStats(facturesRes.stats   || {});
+      setClients(clientsData);
+      setCommandes(commandesData);
+      setSociete(societeData || {});
+    } catch (error) {
+      toast.error("Erreur de chargement");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadClients = async () => {
-    try {
-      const clientsData = await ClientService.getAllClients();
-      setClients(Array.isArray(clientsData) ? clientsData : []);
-    } catch (error) {
-      console.error("Erreur lors du chargement des clients:", error);
-      setClients([]);
-    }
-  };
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const loadCommandes = async () => {
-    try {
-      const commandesData = await CommandeService.getAllCommandes();
-      setCommandes(Array.isArray(commandesData) ? commandesData : []);
-    } catch (error) {
-      console.error("Erreur lors du chargement des commandes:", error);
-      setCommandes([]);
-    }
-  };
-
-  const loadFactures = async () => {
-    try {
-      const response = await factureService.getAllFactures();
-      setFactures(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error("Erreur lors du chargement des factures:", error);
-      setFactures([]);
-    }
-  };
-
-  const filteredFactures = factures.filter((facture) => {
-    const matchesSearch =
-      (facture.num &&
-        facture.num.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (facture.clientNom &&
-        facture.clientNom.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = !statusFilter || facture.status === statusFilter;
-    const matchesType = !typeFilter || facture.type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+  const filtered = factures.filter((f) => {
+    const nom = f.client
+      ? typeof f.client === "object" ? `${f.client.prenom} ${f.client.nom}` : f.clientNom
+      : f.clientNom || "";
+    const matchSearch = !searchTerm || f.num?.toLowerCase().includes(searchTerm.toLowerCase()) || nom.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = !statusFilter || f.status === statusFilter;
+    const matchType   = !typeFilter   || f.type   === typeFilter;
+    return matchSearch && matchStatus && matchType;
   });
 
-  const handleView = (facture) => {
-    setSelectedFacture(facture);
-    setShowViewModal(true);
-  };
+  const handleView = (facture) => { setSelectedFacture(facture); setShowViewModal(true); };
 
   const handleEdit = (facture) => {
     setSelectedFacture(facture);
     setFormData({
-      num: facture.num,
-      clientNom: facture.clientNom,
-      clientEmail: facture.clientEmail || "",
-      clientId: facture.clientId,
-      date: facture.date,
-      dateEcheance: facture.dateEcheance,
-      type: facture.type,
-      status: facture.status,
-      lignes: facture.lignes || [],
+      client:        facture.client?._id   || facture.client   || "",
+      clientNom:     facture.clientNom     || "",
+      clientEmail:   facture.clientEmail   || "",
+      clientAdresse: facture.clientAdresse || "",
+      commande:      facture.commande?._id || facture.commande || "",
+      date:          facture.date         ? new Date(facture.date).toISOString().split("T")[0]         : "",
+      dateEcheance:  facture.dateEcheance ? new Date(facture.dateEcheance).toISOString().split("T")[0] : "",
+      type:          facture.type          || "facture",
+      status:        facture.status        || "draft",
+      lignes:        facture.lignes        || [],
       remiseGlobale: facture.remiseGlobale || 0,
-      tvaGlobale: facture.tvaGlobale || 20,
-      montantHT: facture.montantHT,
-      montantTVA: facture.montantTVA,
-      montantTTC: facture.montantTTC,
-      montantPaye: facture.montantPaye || 0,
-      montantRestant: facture.montantRestant || facture.montantTTC,
-      notes: facture.notes || "",
-      cmdRef: facture.cmdRef || "",
+      tvaGlobale:    facture.tvaGlobale    || 20,
+      montantHT:     facture.montantHT     || 0,
+      montantTVA:    facture.montantTVA    || 0,
+      montantTTC:    facture.montantTTC    || 0,
+      montantPaye:   facture.montantPaye   || 0,
+      montantRestant:facture.montantRestant|| 0,
+      notes:         facture.notes         || "",
     });
-    setModePaiement(facture.modePaiement || "");
     setShowEditModal(true);
   };
 
+  const handlePayer = (facture) => { setFactureAPayer(facture); setShowPayerModal(true); };
+
   const handleDelete = async (id) => {
-    if (confirm("Supprimer définitivement cette facture ?")) {
-      try {
-        await factureService.deleteFacture(id);
-        await loadFactures();
-        toast.success("Facture supprimée avec succès");
-      } catch (error) {
-        console.error("Erreur lors de la suppression:", error);
-        toast.error("Erreur lors de la suppression de la facture");
-      }
+    if (!confirm("Supprimer définitivement cette facture ?")) return;
+    try {
+      await factureService.deleteFacture(id);
+      toast.success("Facture supprimée");
+      await loadData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erreur lors de la suppression");
     }
   };
 
-  const handleDownload = (facture) => {
-    toast.info(
-      `Téléchargement de la facture ${facture.num} - Fonction à implémenter`,
-    );
-    console.log("Télécharger facture:", facture.num);
-  };
-
-  const handleSave = async () => {
+  const handleSave = async (dataToSend) => {
     try {
-      // Préparer le payload sans modePaiement s'il est vide
-      const payload = { ...formData };
-
-      // Ne pas envoyer modePaiement s'il est vide ou null
-      if (!modePaiement || modePaiement === "") {
-        delete payload.modePaiement;
-      } else {
-        payload.modePaiement = modePaiement;
-      }
-
-      // Supprimer les champs vides indésirables
-      if (!payload.num) delete payload.num;
-      if (!payload.cmdRef) delete payload.cmdRef;
-
       if (showEditModal && selectedFacture) {
-        await factureService.updateFacture(selectedFacture.id, payload);
+        await factureService.updateFacture(selectedFacture._id, dataToSend);
+        toast.success("Facture mise à jour");
       } else {
-        await factureService.createFacture(payload);
+        await factureService.createFacture(dataToSend);
+        toast.success("Facture créée ✅");
       }
-      await loadFactures();
+      setTimeout(() => loadData(), 500);
       setShowAddModal(false);
       setShowEditModal(false);
-      resetFormData();
-      toast.success(
-        showEditModal
-          ? "Facture mise à jour avec succès"
-          : "Facture créée avec succès",
-      );
+      setFormData(EMPTY_FORM);
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      toast.error(
-        "Erreur lors de la sauvegarde: " +
-          (error.response?.data?.message || error.message),
-      );
+      toast.error(error.response?.data?.message || "Erreur lors de la sauvegarde");
     }
   };
 
-  const resetFormData = () => {
-    setFormData({
-      num: "",
-      clientNom: "",
-      clientEmail: "",
-      clientAdresse: "",
-      clientId: "",
-      date: new Date().toISOString().split("T")[0],
-      dateEcheance: "",
-      type: "facture",
-      status: "draft",
-      lignes: [],
-      remiseGlobale: 0,
-      tvaGlobale: 20,
-      montantHT: 0,
-      montantTVA: 0,
-      montantTTC: 0,
-      montantPaye: 0,
-      montantRestant: 0,
-      notes: "",
-      cmdRef: "",
-    });
-    setModePaiement("");
-  };
-
-  const totalFactures = factures.length;
-  const enAttente = factures.filter((f) => f.status === "en_attente").length;
-  const payees = factures.filter((f) => f.status === "payée").length;
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-slate-400">Chargement des factures...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Facturation
-          </h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Facturation</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {totalFactures} factures • {enAttente} en attente
+            {factures.length} facture{factures.length !== 1 ? "s" : ""} • {stats.unpaid || 0} non payées
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
-        >
+        <button onClick={() => { setFormData(EMPTY_FORM); setShowAddModal(true); }}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
           <Plus size={16} /> Nouvelle facture
         </button>
       </div>
 
-      {/* KPIs */}
-      <FactureStats
-        total={totalFactures}
-        enAttente={enAttente}
-        payees={payees}
-      />
+      <FactureStats stats={stats} />
 
-      {/* Filtres */}
       <FactureFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        typeFilter={typeFilter}
-        setTypeFilter={setTypeFilter}
+        searchTerm={searchTerm}     setSearchTerm={setSearchTerm}
+        typeFilter={typeFilter}     setTypeFilter={setTypeFilter}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
       />
 
-      {/* Tableau */}
-      <FactureTable
-        factures={filteredFactures}
-        onView={handleView}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onDownload={handleDownload}
-      />
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <FactureTable
+          factures={filtered}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPayer={handlePayer}
+          onDownload={(f) => toast.info(`PDF pour ${f.num} — à venir`)}
+        />
+      </div>
 
-      {/* Modal d'ajout/modification */}
       <FactureModal
         isOpen={showAddModal || showEditModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setShowEditModal(false);
-          resetFormData();
-        }}
+        onClose={() => { setShowAddModal(false); setShowEditModal(false); setFormData(EMPTY_FORM); }}
         editMode={showEditModal}
         formData={formData}
         setFormData={setFormData}
-        modePaiement={modePaiement}
-        setModePaiement={setModePaiement}
         clients={clients}
         commandes={commandes}
         onSave={handleSave}
       />
 
-      {/* Modal de visualisation */}
       <FactureViewModal
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
         facture={selectedFacture}
+        societe={societe}
+      />
+
+      <FacturePayerModal
+        isOpen={showPayerModal}
+        onClose={() => setShowPayerModal(false)}
+        facture={factureAPayer}
+        onSave={async (paiementData) => {
+          try {
+            await import("../../services/paiementService").then(m => m.default.create(paiementData));
+            toast.success("Paiement enregistré ✅");
+            setShowPayerModal(false);
+            setTimeout(() => loadData(), 500);
+          } catch (error) {
+            toast.error("Erreur lors du paiement");
+          }
+        }}
       />
     </div>
   );

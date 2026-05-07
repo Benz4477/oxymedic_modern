@@ -128,7 +128,7 @@ export const useCommandes = (
       setLoading(true);
       setError(null);
       const commandesData = await retryWithDelay(
-        () => CommandeService.getAllCommandes(),
+        () => CommandeService.getAll(),
         "Commandes",
       );
       const formattedCommandes = commandesData.map((cmd) =>

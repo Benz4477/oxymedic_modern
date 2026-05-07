@@ -91,45 +91,37 @@ const Stock = () => {
     alert(`Impression étiquette pour ${equip.name} (à implémenter)`);
   };
 
-  const handleSubmitAdd = async () => {
-    try {
-      const validation = validateEquipement(formData);
-      if (!validation.isValid) {
-        alert(
-          "Veuillez corriger les erreurs: " +
-            Object.values(validation.errors).join(", "),
-        );
-        return;
-      }
-
-      // Retirer le champ 'icon' avant l'envoi au backend
-      const { icon, ...dataToSend } = formData;
-      await createEquipement(dataToSend);
-      setShowAddModal(false);
-    } catch (err) {
-      console.error("Erreur lors de l'ajout:", err);
+const handleSubmitAdd = async () => {
+  try {
+    const validation = validateEquipement(formData);
+    if (!validation.isValid) {
+      alert("Veuillez corriger les erreurs: " + Object.values(validation.errors).join(", "));
+      return;
     }
-  };
+    // ← Retirer id, _id, icon avant envoi
+    const { id, _id, icon, ...dataToSend } = formData;
+    await createEquipement(dataToSend);
+    setShowAddModal(false);
+  } catch (err) {
+    console.error("Erreur lors de l'ajout:", err);
+  }
+};
 
-  const handleSubmitEdit = async () => {
-    try {
-      const validation = validateEquipement(formData);
-      if (!validation.isValid) {
-        alert(
-          "Veuillez corriger les erreurs: " +
-            Object.values(validation.errors).join(", "),
-        );
-        return;
-      }
-
-      // Retirer le champ 'icon' avant l'envoi au backend
-      const { icon, ...dataToSend } = formData;
-      await updateEquipement(formData.id, dataToSend);
-      setShowEditModal(false);
-    } catch (err) {
-      console.error("Erreur lors de la modification:", err);
+const handleSubmitEdit = async () => {
+  try {
+    const validation = validateEquipement(formData);
+    if (!validation.isValid) {
+      alert("Veuillez corriger les erreurs: " + Object.values(validation.errors).join(", "));
+      return;
     }
-  };
+    // Utiliser id numérique pour le update
+    const { _id, icon, ...dataToSend } = formData;
+    await updateEquipement(formData.id, dataToSend); // ← formData.id numérique
+    setShowEditModal(false);
+  } catch (err) {
+    console.error("Erreur lors de la modification:", err);
+  }
+};
 
   // ── Loading ──
   if (loading) {
@@ -224,7 +216,7 @@ const Stock = () => {
       </div>
 
       {/* ── Grille des équipements ──────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {filtered.map((equip) => (
           <StockCard
             key={equip._id || equip.id || Math.random()}

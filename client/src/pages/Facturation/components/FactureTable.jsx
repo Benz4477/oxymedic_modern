@@ -45,12 +45,17 @@ const FactureTable = ({ factures, onView, onEdit, onDelete, onDownload }) => {
                 {f.montantRestant > 0 && <div className="text-red-500 text-xs">{f.montantRestant?.toLocaleString() || 0} € restant</div>}
               </td>
               <td className="px-4 py-3"><StatusBadge status={f.status} /></td>
-              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-1.5">
-                  <button onClick={() => onView(f)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Voir"><Eye size={14} /></button>
-                  <button onClick={() => onEdit(f)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Modifier"><Edit size={14} /></button>
-                  <button onClick={() => onDownload(f)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100" title="Télécharger"><FileText size={14} /></button>
-                  <button onClick={() => onDelete(f.id)} className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50" title="Supprimer"><Trash2 size={14} /></button>
+              <td className="px-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-center gap-1">
+                  <button onClick={() => onView(f)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition" title="Voir">
+                    <Eye size={13} className="inline" />
+                  </button>
+                  <button onClick={() => onEdit(f)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition" title="Modifier">
+                    <Edit size={13} className="inline" />
+                  </button>
+                  <button onClick={() => onDelete(f.id)} className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 transition" title="Supprimer">
+                    <Trash2 size={13} className="inline" />
+                  </button>
                 </div>
               </td>
             </tr>

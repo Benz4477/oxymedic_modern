@@ -1,113 +1,47 @@
-// Service pour la gestion des unités (numéros de série)
+import api from "../api";
 
-class UnitService {
-  static BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const unitService = {
+  // GET /api/units
+  getAll: async (params = {}) => {
+    const response = await api.get("/units", { params });
+    return response.data.data;
+  },
 
-  static async getAllUnits() {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units`);
-      const data = await response.json();
+  // GET /api/units/:id
+  getById: async (id) => {
+    const response = await api.get(`/units/${id}`);
+    return response.data.data;
+  },
 
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la récupération des unités");
-      }
+  // GET /api/units/equipement/:equipementId
+  getByEquipement: async (equipementId) => {
+    const response = await api.get(`/units/equipement/${equipementId}`);
+    return response.data.data;
+  },
 
-      return data.data;
-    } catch (error) {
-      console.error("Erreur getAllUnits:", error);
-      throw error;
-    }
-  }
+  // GET /api/units/search?q=
+  search: async (q) => {
+    const response = await api.get("/units/search", { params: { q } });
+    return response.data.data;
+  },
 
-  static async getUnitById(id) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units/${id}`);
-      const data = await response.json();
+  // POST /api/units
+  create: async (data) => {
+    const response = await api.post("/units", data);
+    return response.data.data;
+  },
 
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la récupération de l'unité");
-      }
+  // PUT /api/units/:id
+  update: async (id, data) => {
+    const response = await api.put(`/units/${id}`, data);
+    return response.data.data;
+  },
 
-      return data.data;
-    } catch (error) {
-      console.error("Erreur getUnitById:", error);
-      throw error;
-    }
-  }
+  // DELETE /api/units/:id
+  delete: async (id) => {
+    const response = await api.delete(`/units/${id}`);
+    return response.data;
+  },
+};
 
-  static async getUnitsByEquipement(equipId) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units/equipement/${equipId}`);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la récupération des unités");
-      }
-
-      return data.data;
-    } catch (error) {
-      console.error("Erreur getUnitsByEquipement:", error);
-      throw error;
-    }
-  }
-
-  static async createUnit(unitData) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(unitData),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la création de l'unité");
-      }
-
-      return data.data;
-    } catch (error) {
-      console.error("Erreur createUnit:", error);
-      throw error;
-    }
-  }
-
-  static async updateUnit(id, unitData) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(unitData),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la modification de l'unité");
-      }
-
-      return data.data;
-    } catch (error) {
-      console.error("Erreur updateUnit:", error);
-      throw error;
-    }
-  }
-
-  static async deleteUnit(id) {
-    try {
-      const response = await fetch(`${this.BASE_URL}/units/${id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Erreur lors de la suppression de l'unité");
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Erreur deleteUnit:", error);
-      throw error;
-    }
-  }
-}
-
-export default UnitService;
+export default unitService;

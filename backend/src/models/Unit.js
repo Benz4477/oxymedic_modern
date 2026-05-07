@@ -2,56 +2,73 @@ import mongoose from "mongoose";
 
 const unitSchema = new mongoose.Schema(
   {
-    id: {
-      type: Number,
-      required: true,
-      unique: true,
-    },
-    equipId: {
+    // Référence vers l'équipement — ObjectId propre
+    equipement: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Equipement",
-      required: true,
+      required: [true, "L'équipement est requis"],
+      index: true,
     },
     serial: {
       type: String,
-      required: true,
+      required: [true, "Le numéro de série est requis"],
       unique: true,
+      trim: true,
+      uppercase: true,
     },
     barcode: {
       type: String,
-      required: true,
+      required: [true, "Le code-barres est requis"],
       unique: true,
+      trim: true,
     },
-    status: {
+    // Statut — source de vérité pour la disponibilité
+    statut: {
       type: String,
-      enum: ["available", "rented", "maintenance", "retired"],
-      default: "available",
+      enum: ["disponible", "loué", "maintenance", "retiré", "archive"],
+      default: "disponible",
+      index: true,
     },
-    clientId: {
-      type: Number,
+    // Commande active liée (null si disponible)
+    commandeActive: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Commande",
       default: null,
     },
-    cmdRef: {
+    // Client actuel (dénormalisé pour performance)
+    clientActuel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+      default: null,
+    },
+    // Infos physiques
+    etat: {
+      type: String,
+      enum: ["neuf", "bon", "use", "defectueux"],
+      default: "bon",
+    },
+    dateAchat: {
+      type: Date,
+      default: null,
+    },
+    emplacement: {
       type: String,
       default: "",
-    },
-    dateIn: {
-      type: String,
-      required: true,
     },
     note: {
       type: String,
       default: "",
       trim: true,
     },
-    archived: {
-      type: Boolean,
-      default: false,
-    },
   },
   {
     timestamps: true,
-  },
+  }
 );
+
+// Index composé pour recherche
+unitSchema.index({ serial: 1, equipement: 1 });
+unitSchema.index({ barcode: 1 });
+unitSchema.index({ statut: 1, equipement: 1 }); // pour getUnitesDisponibles()
 
 export default mongoose.model("Unit", unitSchema);

@@ -1,251 +1,212 @@
-// src/pages/Devis/Devis.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
-import DevisStats from "./components/DevisStats";
-import DevisFilters from "./components/DevisFilters";
-import DevisTable from "./components/DevisTable";
-import DevisModal from "./components/DevisModal";
-import DevisViewModal from "./components/DevisViewModal";
-import devisService from "./services/devisService.js";
-import clientService from "./services/clientService.js";
-import commandeService from "./services/commandeService.js";
 import { toast } from "react-toastify";
+import devisService      from "./services/devisService";
+import clientService     from "../Clients/services/clientService";
+import equipementService from "../../services/equipementService";
+import DevisStats   from "./components/DevisStats";
+import DevisFilters from "./components/DevisFilters";
+import DevisTable   from "./components/DevisTable";
+import DevisModal   from "./components/DevisModal";
+import ConvertModal from "./components/ConvertModal";
+import DevisViewModal from "./components/DevisViewModal";
 
 const Devis = () => {
-  const [devis, setDevis] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [devis, setDevis]           = useState([]);
+  const [stats, setStats]           = useState({});
+  const [clients, setClients]       = useState([]);
+  const [equipements, setEquipements] = useState([]);
+  const [societe, setSociete]       = useState({});
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedDevis, setSelectedDevis] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [clients, setClients] = useState([]);
-  const [commandes, setCommandes] = useState([]);
+  const [showModal, setShowModal]       = useState(false);
+  const [showConvert, setShowConvert]   = useState(false);
+  const [showView, setShowView]         = useState(false);
+  const [editMode, setEditMode]         = useState(false);
+  const [selected, setSelected]         = useState(null);
 
-  useEffect(() => {
-    loadDevis();
-    loadClients();
-    loadCommandes();
-  }, []);
-
-  const loadDevis = async () => {
+  // ── Chargement ────────────────────────────────────────
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      const filters = {};
-      if (statusFilter) filters.status = statusFilter;
-
-      const data = await devisService.getAllDevis(filters);
-      setDevis(data);
-    } catch (error) {
-      console.error("Erreur lors du chargement des devis:", error);
-      setError("Erreur lors du chargement des devis");
+      const [devisRes, clientsData, equipData, societeData] = await Promise.all([
+        devisService.getAll(),
+        clientService.getAll(),
+        equipementService.getAll(),
+        fetch("/api/societe").then(r => r.json()).then(r => r.data || {}),
+      ]);
+      setDevis(devisRes.data || []);
+      setStats(devisRes.stats || {});
+      setClients(clientsData);
+      setEquipements(equipData);
+      setSociete(societeData);
+    } catch (err) {
+      toast.error("Erreur de chargement des devis");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadClients = async () => {
-    try {
-      const data = await clientService.getAllClients();
-      setClients(data);
-    } catch (error) {
-      console.error("Erreur lors du chargement des clients:", error);
-    }
-  };
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const loadCommandes = async () => {
-    try {
-      console.log("Chargement des commandes...");
-      const data = await commandeService.getAllCommandes();
-      console.log("Commandes chargées:", data);
-      setCommandes(data);
-    } catch (error) {
-      console.error("Erreur lors du chargement des commandes:", error);
-    }
-  };
-
-  // Recharger les devis quand les filtres changent
-  useEffect(() => {
-    loadDevis();
-  }, [statusFilter]);
-
-  const filtered = devis.filter((d) => {
-    const matchSearch =
-      d.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (d.clientName &&
-        d.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
+  // ── Filtrage ──────────────────────────────────────────
+  const filtered = devis.filter(d => {
+    const nom = d.clientNom || (d.client ? `${d.client.prenom} ${d.client.nom}` : "");
+    const matchSearch = !search ||
+      d.reference?.toLowerCase().includes(search.toLowerCase()) ||
+      nom.toLowerCase().includes(search.toLowerCase());
     const matchStatus = !statusFilter || d.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const total = devis.length;
-  const envoye = devis.filter((d) => d.status === "sent").length;
-  const accepte = devis.filter((d) => d.status === "accepted").length;
-  const expired = devis.filter(
-    (d) => d.status === "expired" || d.status === "rejected",
-  ).length;
-
-  const handleDelete = async (id) => {
-    if (confirm("Supprimer ce devis ?")) {
-      try {
-        await devisService.deleteDevis(id);
-        loadDevis(); // Recharger la liste
-      } catch (error) {
-        console.error("Erreur lors de la suppression:", error);
-        toast.error("Erreur lors de la suppression du devis");
-      }
-    }
-  };
-
-  const handleSend = async (devisItem) => {
+  // ── CRUD ─────────────────────────────────────────────
+  const handleSave = async (data) => {
     try {
-      await devisService.sendDevis(devisItem.id);
-      loadDevis(); // Recharger la liste
-      toast.success("Devis envoyé avec succès");
-    } catch (error) {
-      console.error("Erreur lors de l'envoi:", error);
-      toast.error("Erreur lors de l'envoi du devis");
-    }
-  };
-
-  const handleConvert = async (devisItem) => {
-    try {
-      const result = await devisService.convertDevis(devisItem.id);
-      loadDevis(); // Recharger la liste
-      toast.success(`Devis converti en commande: ${result.cmdRef}`);
-    } catch (error) {
-      console.error("Erreur lors de la conversion:", error);
-      toast.error("Erreur lors de la conversion du devis");
-    }
-  };
-
-  const handlePrint = async (devisItem) => {
-    try {
-      await devisService.printDevis(devisItem.id);
-      toast.success("Devis imprimé avec succès");
-    } catch (error) {
-      console.error("Erreur lors de l'impression:", error);
-      toast.error("Erreur lors de l'impression du devis");
-    }
-  };
-
-  const handleDuplicate = async (devisItem) => {
-    try {
-      const result = await devisService.duplicateDevis(devisItem.id);
-      loadDevis(); // Recharger la liste
-      toast.success(`Devis dupliqué: ${result.reference}`);
-    } catch (error) {
-      console.error("Erreur lors de la duplication:", error);
-      toast.error("Erreur lors de la duplication du devis");
-    }
-  };
-
-  const handleSaveDevis = async (devisData) => {
-    try {
-      if (selectedDevis && selectedDevis.id) {
-        await devisService.updateDevis(selectedDevis.id, devisData);
-        toast.success("Devis mis à jour avec succès");
+      if (editMode && selected) {
+        await devisService.update(selected._id, data);
+        toast.success("Devis mis à jour ✅");
       } else {
-        await devisService.createDevis(devisData);
-        toast.success("Devis créé avec succès");
+        await devisService.create(data);
+        toast.success("Devis créé ✅");
       }
-      setShowAddModal(false);
-      setSelectedDevis(null);
-      loadDevis(); // Recharger la liste
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde du devis:", error);
-      toast.error("Erreur lors de la sauvegarde du devis");
+      setShowModal(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur lors de la sauvegarde");
     }
   };
+
+  const handleSend = async (d) => {
+    try {
+      await devisService.send(d._id);
+      toast.success("Devis envoyé 📤");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur");
+    }
+  };
+
+  const handleAccept = async (d) => {
+    try {
+      await devisService.accept(d._id);
+      toast.success("Devis accepté ✅");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur");
+    }
+  };
+
+  const handleReject = async (d) => {
+    try {
+      await devisService.reject(d._id);
+      toast.success("Devis refusé");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur");
+    }
+  };
+
+  const handleDelete = async (d) => {
+    if (!confirm("Supprimer ce devis ?")) return;
+    try {
+      await devisService.delete(d._id);
+      toast.success("Devis supprimé");
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur");
+    }
+  };
+
+  const handleConvert = async (formData) => {
+    try {
+      const res = await devisService.convert(selected._id, formData);
+      toast.success(res.message || "Converti en commande ✅");
+      setShowConvert(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur lors de la conversion");
+    }
+  };
+
+  // ── Loading ───────────────────────────────────────────
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-slate-400">Chargement des devis...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Devis
-          </h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Devis</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {total} devis • {envoye} en attente de réponse
+            {stats.total || 0} devis • {stats.converted || 0} convertis • Taux : {stats.conversionRate || 0}%
           </p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
-        >
+          onClick={() => { setEditMode(false); setSelected(null); setShowModal(true); }}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
           <Plus size={16} /> Nouveau devis
         </button>
       </div>
 
-      {/* KPIs */}
-      <DevisStats
-        total={total}
-        envoye={envoye}
-        accepte={accepte}
-        expired={expired}
-      />
+      {/* ── KPIs ── */}
+      <DevisStats stats={stats} />
 
-      {/* Filtres */}
+      {/* ── Filtres ── */}
       <DevisFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
+        search={search}             setSearch={setSearch}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
       />
 
-      {/* Tableau */}
+      {/* ── Tableau ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <DevisTable
           devis={filtered}
-          onView={(d) => {
-            setSelectedDevis(d);
-            setShowViewModal(true);
-          }}
-          onEdit={(d) => {
-            setSelectedDevis(d);
-            setShowAddModal(true);
-          }}
+          onView={(d) => { setSelected(d); setShowView(true); }}
+          onEdit={(d) => { setSelected(d); setEditMode(true); setShowModal(true); }}
           onSend={handleSend}
-          onConvert={handleConvert}
-          onPrint={handlePrint}
-          onDuplicate={handleDuplicate}
+          onAccept={handleAccept}
+          onReject={handleReject}
           onDelete={handleDelete}
+          onConvert={(d) => { setSelected(d); setShowConvert(true); }}
         />
       </div>
 
-      {/* Modal d'ajout/modification */}
+      {/* ── Modals ── */}
       <DevisModal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setSelectedDevis(null);
-        }}
-        editMode={!!selectedDevis?.id}
-        devis={selectedDevis}
-        onSave={handleSaveDevis}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        editMode={editMode}
+        initialData={selected}
         clients={clients}
-        commandes={commandes}
+        equipements={equipements}
+        onSave={handleSave}
       />
 
-      {/* Modal de visualisation */}
-      <DevisViewModal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false);
-          setSelectedDevis(null);
-        }}
-        devis={selectedDevis}
-        onEdit={(d) => {
-          setSelectedDevis(d);
-          setShowAddModal(true);
-          setShowViewModal(false);
-        }}
-        onDelete={handleDelete}
+      <ConvertModal
+        isOpen={showConvert}
+        onClose={() => setShowConvert(false)}
+        devis={selected}
+        equipements={equipements}
         onConvert={handleConvert}
+      />
+
+      <DevisViewModal
+        isOpen={showView}
+        onClose={() => setShowView(false)}
+        devis={selected}
+        societe={societe}
         onSend={handleSend}
+        onAccept={handleAccept}
+        onConvert={(d) => { setShowView(false); setSelected(d); setShowConvert(true); }}
       />
     </div>
   );

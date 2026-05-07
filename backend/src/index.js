@@ -5,157 +5,134 @@ import helmet from "helmet";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
-import { body, param, query, validationResult } from "express-validator";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import connectDB from "./config/db.js";
 
-// Import des routes
-import authRoutes from "./routes/auth.js";
-import clientRoutes from "./routes/clients.js";
-import commandeRoutes from "./routes/commandes.js";
-import stockRoutes from "./routes/stock.js";
-import devisRoutes from "./routes/devis.js";
-import factureRoutes from "./routes/factures.js";
-import serialRoutes from "./routes/serials.js";
-import livraisonRoutes from "./routes/livraisons.js";
-import livreurRoutes from "./routes/livreurs.js";
-import userRoutes from "./routes/users.js";
-import categoryRoutes from "./routes/categories.js";
-import fraisRoutes from "./routes/frais.js";
+// ── Import des routes ──────────────────────────────────────
+import authRoutes        from "./routes/auth.js";
+import clientRoutes      from "./routes/clients.js";
+import commandeRoutes    from "./routes/commandes.js";
+import stockRoutes       from "./routes/stock.js";
+import equipementRoutes  from "./routes/equipements.js";   // ✅ nouveau
+import unitsRoutes       from "./routes/units.js";
+import devisRoutes       from "./routes/devis.js";
+import factureRoutes     from "./routes/factures.js";
+import serialRoutes      from "./routes/serials.js";
+import livraisonRoutes   from "./routes/livraisons.js";
+import livreurRoutes     from "./routes/livreurs.js";
+import userRoutes        from "./routes/users.js";
+import categoryRoutes    from "./routes/categories.js";
+import fraisRoutes       from "./routes/frais.js";
 import maintenanceRoutes from "./routes/maintenances.js";
 import permissionsRoutes from "./routes/permissions.js";
-import unitsRoutes from "./routes/units.js";
-import statsRoutes from "./routes/stats.js";
-import societeRoutes from "./routes/societe.js";
+import statsRoutes       from "./routes/stats.js";
+import societeRoutes     from "./routes/societe.js";
+import paiementRoutes    from "./routes/paiements.js";
+import crmRoutes         from "./routes/crmRoutes.js";
 
-// Configuration
 dotenv.config();
-
-// Connexion MongoDB
 connectDB();
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// Servir les fichiers uploadés statiquement avec CORS
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname  = dirname(__filename);
 
-app.use(
-  "/uploads",
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "http://localhost:3000",
-    ],
-    credentials: true,
-  }),
-  express.static(join(__dirname, "../uploads")),
-);
+// ── Fichiers statiques (uploads) ──────────────────────────
+app.use("/uploads", express.static(join(__dirname, "../uploads")));
 
-// Middleware de sécurité
-app.use(
-  helmet({
-    contentSecurityPolicy: false, // Désactivé pour permettre les requêtes cross-origin
-    crossOriginEmbedderPolicy: false,
-  }),
-);
-
+// ── Sécurité ──────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(compression());
-
-// CORS configuration plus sécurisée
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "http://localhost:3000",
-    ],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Content-Range", "X-Content-Range"],
-    maxAge: 600,
-  }),
-);
-
-// Protection contre NoSQL injection
 app.use(mongoSanitize());
 
-// Rate limiting global
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: "Trop de requêtes, veuillez réessayer plus tard.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api/", limiter);
+// ── CORS ──────────────────────────────────────────────────
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map(o => o.trim())
+  .filter(Boolean)
+  .concat([
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:5173", // Vite default
+    "http://localhost:5174",
+  ]);
 
-// Rate limiting plus strict pour l'authentification
+app.use(cors({
+  origin: (origin, cb) => {
+    // Autoriser les requêtes sans origin (ex: Postman, mobile)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS bloqué pour : ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// ── Rate limiting ──────────────────────────────────────────
+app.use("/api/", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500, // augmenté pour le dev
+  message: { success: false, message: "Trop de requêtes, réessayez plus tard." },
+}));
+
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 tentatives de connexion par 15 minutes
-  message: {
-    success: false,
-    message:
-      "Trop de tentatives de connexion, veuillez réessayer dans 15 minutes.",
-  },
+  windowMs: 15 * 60 * 1000,
+  max: 20, // augmenté pour le dev
   skipSuccessfulRequests: true,
+  message: { success: false, message: "Trop de tentatives, réessayez dans 15 min." },
 });
 
-// Body parser avec limites de taille
-app.use(express.json({ limit: "1mb" })); // Réduit de 10mb à 1mb pour la sécurité
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-// Routes
-app.use("/api/auth/login", authLimiter); // Rate limiting spécifique pour le login
-app.use("/api/auth", authRoutes);
-app.use("/api/clients", clientRoutes);
-app.use("/api/commandes", commandeRoutes);
-app.use("/api/stock", stockRoutes);
-app.use("/api/devis", devisRoutes);
-app.use("/api/factures", factureRoutes);
-app.use("/api/serials", serialRoutes);
-app.use("/api/livraisons", livraisonRoutes);
-app.use("/api/livreurs", livreurRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/frais", fraisRoutes);
+// ── Body parser ────────────────────────────────────────────
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+
+// ── Routes ────────────────────────────────────────────────
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth",         authRoutes);
+app.use("/api/clients",      clientRoutes);
+app.use("/api/commandes",    commandeRoutes);
+app.use("/api/stock",        stockRoutes);
+app.use("/api/equipements",  equipementRoutes);  // ✅ nouveau
+app.use("/api/units",        unitsRoutes);
+app.use("/api/devis",        devisRoutes);
+app.use("/api/factures",     factureRoutes);
+app.use("/api/serials",      serialRoutes);
+app.use("/api/livraisons",   livraisonRoutes);
+app.use("/api/livreurs",     livreurRoutes);
+app.use("/api/users",        userRoutes);
+app.use("/api/categories",   categoryRoutes);
+app.use("/api/frais",        fraisRoutes);
 app.use("/api/maintenances", maintenanceRoutes);
-app.use("/api/permissions", permissionsRoutes);
-app.use("/api/units", unitsRoutes);
-app.use("/api/stats", statsRoutes);
-app.use("/api/societe", societeRoutes);
+app.use("/api/permissions",  permissionsRoutes);
+app.use("/api/stats",        statsRoutes);
+app.use("/api/societe",      societeRoutes);
+app.use("/api/paiements", paiementRoutes);
+app.use("/api/crm",        crmRoutes);
 
-// Route de test
+// ── Health check ───────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     message: "OXYMEDIC Backend API is running",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
   });
 });
 
-// Gestion des erreurs 404
+// ── 404 ────────────────────────────────────────────────────
 app.use("*", (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route non trouvée",
-  });
+  res.status(404).json({ success: false, message: `Route non trouvée : ${req.originalUrl}` });
 });
 
-// Gestion des erreurs globales
+// ── Erreurs globales ───────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("❌ Erreur serveur:", err.message);
   res.status(500).json({
     success: false,
     message: "Erreur serveur interne",
@@ -163,7 +140,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Démarrage du serveur
+// ── Démarrage ──────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`🚀 OXYMEDIC Backend API running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);

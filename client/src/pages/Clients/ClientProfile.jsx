@@ -221,7 +221,10 @@ const ClientProfile = ({ clientId, onBack }) => {
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={onBack}
+          onClick={() => {
+            console.log("onBack appelé dans ClientProfile");
+            onBack();
+          }}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 transition shrink-0"
         >
           <ArrowLeft size={15} />

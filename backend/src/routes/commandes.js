@@ -5,23 +5,21 @@ import {
   createCommande,
   updateCommande,
   deleteCommande,
+  updateStatut,
   reconduireCommande,
-  updateChecklistRetour,
-  updateStatus,
 } from "../controllers/commandeController.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Routes CRUD de base
-router.get("/", getAllCommandes);
-router.get("/:id", getCommandeById);
-router.post("/", createCommande);
-router.put("/:id", updateCommande);
-router.delete("/:id", deleteCommande);
+router.use(protect);
 
-// Routes spécifiques aux fonctionnalités avancées
-router.post("/:id/reconduire", reconduireCommande);
-router.put("/:id/checklist-retour", updateChecklistRetour);
-router.patch("/:id/status", updateStatus);
+router.get("/",                      getAllCommandes);
+router.get("/:id",                   getCommandeById);
+router.post("/",                     createCommande);
+router.put("/:id",                   updateCommande);
+router.delete("/:id",                deleteCommande);
+router.put("/:id/statut",            updateStatut);
+router.post("/:id/reconduire",       reconduireCommande);
 
 export default router;

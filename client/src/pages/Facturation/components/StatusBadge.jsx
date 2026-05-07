@@ -53,8 +53,8 @@ const StatusBadge = ({ status }) => {
   const { color, icon, label } = getStatusConfig(status);
 
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${color}`}>
-      {icon && <span className="mr-1">{icon}</span>}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${color}`}>
+      {icon && <span className="mr-1 inline-flex">{icon}</span>}
       {label}
     </span>
   );

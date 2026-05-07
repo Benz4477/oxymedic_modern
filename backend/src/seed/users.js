@@ -14,7 +14,7 @@ const seedUsers = async () => {
     console.log("🗑️ Utilisateurs existants supprimés");
 
     // Hasher les mots de passe manuellement pour insertMany
-    const password = await bcrypt.hash("1234", 12);
+    const password = await bcrypt.hash("12345678", 12);
 
     // Créer les utilisateurs par défaut
     const users = [

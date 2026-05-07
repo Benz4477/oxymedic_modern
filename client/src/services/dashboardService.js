@@ -1,128 +1,156 @@
-import api from "../../frontend/src/api";
+import api from "../api";
 
-// Service pour récupérer les statistiques du dashboard
-export const fetchDashboardStats = async () => {
-  try {
-    const response = await api.get("/stats/dashboard");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchDashboardStats:", error);
-    throw error;
-  }
-};
+export const fetchAllDashboardData = async () => {
+  const [clientsRes, commandesRes, paiementsRes, unitsRes, facturesRes, equipementsRes] = await Promise.all([
+    api.get("/clients").catch(() => ({ data: { data: [] } })),
+    api.get("/commandes").catch(() => ({ data: { data: [] } })),
+    api.get("/paiements").catch(() => ({ data: { data: [] } })),
+    api.get("/units").catch(() => ({ data: { data: [] } })),
+    api.get("/factures").catch(() => ({ data: { data: [] } })),
+    api.get("/equipements").catch(() => ({ data: { data: [] } })),
+  ]);
 
-// Service pour récupérer les commandes récentes
-export const fetchRecentOrders = async () => {
-  try {
-    const response = await api.get("/commandes?limit=5&sort=createdAt:desc");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchRecentOrders:", error);
-    throw error;
-  }
-};
+  const clients    = clientsRes.data?.data    || [];
+  const commandes  = commandesRes.data?.data  || [];
+  const paiements  = paiementsRes.data?.data  || [];
+  const units      = unitsRes.data?.data      || [];
+  const factures   = facturesRes.data?.data   || [];
+  const equipements = equipementsRes.data?.data || [];
 
-// Service pour récupérer les livraisons du jour
-export const fetchTodayDeliveries = async () => {
-  try {
-    const response = await api.get("/livraisons?date=today");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchTodayDeliveries:", error);
-    throw error;
-  }
-};
+  const now = new Date();
+  const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+  const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const finMoisPrecedent   = new Date(now.getFullYear(), now.getMonth(), 0);
 
-// Service pour récupérer les coûts de livraison mensuels
-export const fetchMonthlyDeliveryCosts = async () => {
-  try {
-    const response = await api.get("/frais/monthly");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchMonthlyDeliveryCosts:", error);
-    throw error;
-  }
-};
+  // ── KPIs ─────────────────────────────────────────────
+  const paiementsPaid    = paiements.filter(p => p.statut === "paid");
+  const paiementsPending = paiements.filter(p => p.statut === "pending");
+  const caMois     = paiementsPaid.filter(p => new Date(p.datePaiement) >= debutMois).reduce((s, p) => s + p.montant, 0);
+  const caMoisPrec = paiementsPaid.filter(p => new Date(p.datePaiement) >= debutMoisPrecedent && new Date(p.datePaiement) <= finMoisPrecedent).reduce((s, p) => s + p.montant, 0);
+  const caTotal    = paiementsPaid.reduce((s, p) => s + p.montant, 0);
+  const caEvol     = caMoisPrec > 0 ? Math.round(((caMois - caMoisPrec) / caMoisPrec) * 100) : 0;
 
-// Service pour récupérer les paiements récents
-export const fetchRecentPayments = async () => {
-  try {
-    const response = await api.get("/paiements?limit=5&sort=createdAt:desc");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchRecentPayments:", error);
-    throw error;
-  }
-};
+  const commandesActives  = commandes.filter(c => c.statut === "active");
+  const commandesPending  = commandes.filter(c => c.statut === "pending");
+  const unitsDisponibles  = units.filter(u => u.statut === "disponible");
+  const unitsLoues        = units.filter(u => u.statut === "loué");
+  const unitsMaintenance  = units.filter(u => u.statut === "maintenance");
+  const tauxOccupation    = units.length > 0 ? Math.round((unitsLoues.length / units.length) * 100) : 0;
 
-// Service pour récupérer les alertes
-export const fetchAlerts = async () => {
-  try {
-    // En attendant une vraie API d'alertes, on simule avec les commandes et paiements en retard
-    const [overdueOrders, pendingPayments] = await Promise.all([
-      api.get("/commandes?status=overdue"),
-      api.get("/paiements?status=pending"),
-    ]);
+  // ── Commandes expirant dans 7 jours ──────────────────
+  const dans7jours = new Date(now);
+  dans7jours.setDate(dans7jours.getDate() + 7);
+  const commandesARenouveler = commandes.filter(c => {
+    if (c.statut !== "active") return false;
+    const fin = new Date(c.dateFin);
+    return fin >= now && fin <= dans7jours;
+  });
 
-    const alerts = [];
+  // ── Factures en retard ────────────────────────────────
+  const facturesEnRetard = factures.filter(f =>
+    (f.status === "unpaid" || f.status === "partial") &&
+    f.dateEcheance && new Date(f.dateEcheance) < now
+  );
+  const facturesImpayees = factures.filter(f => f.status === "unpaid" || f.status === "partial");
+  const totalRestant = facturesImpayees.reduce((s, f) => s + (f.montantRestant || 0), 0);
 
-    // Alertes pour commandes en retard
-    overdueOrders.data.data.forEach((order) => {
-      alerts.push({
-        id: `order-${order._id}`,
-        type: "contract",
-        level: "urgent",
-        icon: "🚨",
-        title: "Fin de location expirée",
-        message: `${order.client?.name || "Client"} — ${order.equipement?.name || "Équipement"} (expiré depuis ${calculateDaysOverdue(order.endDate)} jours)`,
-        action: "/app/commandes",
-      });
+  // ── Top équipements loués ─────────────────────────────
+  const equipeCount = {};
+  commandes.forEach(cmd => {
+    const nom = cmd.equipement?.name || cmd.equipement?.nom || "Autre";
+    equipeCount[nom] = (equipeCount[nom] || 0) + 1;
+  });
+  const topEquipements = Object.entries(equipeCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 18) + "…" : name, count }));
+
+  // ── Répartition par catégorie ─────────────────────────
+  const catCount = {};
+  equipements.forEach(e => {
+    const cat = e.cat || "Autre";
+    catCount[cat] = (catCount[cat] || 0) + 1;
+  });
+  const repartitionCat = Object.entries(catCount).map(([name, value]) => ({ name, value }));
+
+  // ── CA par mois (12 derniers mois) ────────────────────
+  const caParMois = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const fin = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    const ca = paiementsPaid
+      .filter(p => p.datePaiement && new Date(p.datePaiement) >= d && new Date(p.datePaiement) <= fin)
+      .reduce((s, p) => s + p.montant, 0);
+    caParMois.push({
+      mois: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      ca: Math.round(ca),
     });
-
-    // Alertes pour paiements en retard
-    pendingPayments.data.data.forEach((payment) => {
-      alerts.push({
-        id: `payment-${payment._id}`,
-        type: "payment",
-        level: "info",
-        icon: "💵",
-        title: "Paiement en retard",
-        message: `${payment.client?.name || "Client"} — ${payment.amount} MAD impayé depuis ${calculateDaysOverdue(payment.dueDate)} jours`,
-        action: "/app/paiements",
-      });
-    });
-
-    return alerts;
-  } catch (error) {
-    console.error("Erreur fetchAlerts:", error);
-    throw error;
   }
+
+  // ── Commandes par mois (6 derniers mois) ─────────────
+  const commandesParMois = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const fin = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    const count = commandes.filter(c => {
+      const dc = new Date(c.createdAt);
+      return dc >= d && dc <= fin;
+    }).length;
+    commandesParMois.push({
+      mois: d.toLocaleDateString("fr-FR", { month: "short" }),
+      commandes: count,
+    });
+  }
+
+  // ── Alertes ───────────────────────────────────────────
+  const alertes = [];
+  if (unitsMaintenance.length > 0)
+    alertes.push({ type: "warning", icon: "🔧", message: `${unitsMaintenance.length} unité(s) en maintenance` });
+  if (commandesARenouveler.length > 0)
+    alertes.push({ type: "warning", icon: "📅", message: `${commandesARenouveler.length} commande(s) expirent dans 7 jours` });
+  if (facturesEnRetard.length > 0)
+    alertes.push({ type: "danger", icon: "⚠️", message: `${facturesEnRetard.length} facture(s) en retard de paiement` });
+  if (paiementsPending.length > 0)
+    alertes.push({ type: "info", icon: "💳", message: `${paiementsPending.length} paiement(s) en attente de confirmation` });
+
+  return {
+    // KPIs
+    totalClients: clients.length,
+    commandesActives: commandesActives.length,
+    commandesPending: commandesPending.length,
+    totalCommandes: commandes.length,
+    unitsDisponibles: unitsDisponibles.length,
+    unitsLoues: unitsLoues.length,
+    unitsMaintenance: unitsMaintenance.length,
+    totalUnits: units.length,
+    tauxOccupation,
+    caTotal,
+    caMois,
+    caMoisPrec,
+    caEvol,
+    paiementsPending: paiementsPending.length,
+    totalRestant,
+    // Listes
+    recentCommandes: commandes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5),
+    recentPaiements: paiements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5),
+    facturesImpayees: facturesImpayees.slice(0, 5),
+    facturesEnRetard,
+    commandesARenouveler,
+    // Graphiques
+    caParMois,
+    commandesParMois,
+    topEquipements,
+    repartitionCat,
+    // Alertes
+    alertes,
+  };
 };
 
-// Service pour récupérer les informations de la société
 export const fetchSociete = async () => {
   try {
-    const response = await api.get("/societe");
-    return response.data.data;
-  } catch (error) {
-    console.error("Erreur fetchSociete:", error);
-    // Retourner les données par défaut si l'API n'existe pas encore
-    return {
-      nom: "OXYMEDIC",
-      slogan: "Le confort médical à domicile",
-      logo: null,
-      tel: "+212 5XX-XXX-XXX",
-      ice: "123456789012345",
-      rib: "1234 5678 9012 3456 78",
-    };
-  }
+    const res = await api.get("/societe");
+    return res.data?.data || res.data || {};
+  } catch { return {}; }
 };
 
-// Fonction utilitaire pour calculer les jours de retard
-const calculateDaysOverdue = (dateString) => {
-  const overdueDate = new Date(dateString);
-  const today = new Date();
-  const diffTime = Math.abs(today - overdueDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
+export default { fetchAllDashboardData, fetchSociete };

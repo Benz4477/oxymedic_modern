@@ -54,10 +54,11 @@ const createEquipement = async (req, res) => {
   console.log("Body reçu:", JSON.stringify(req.body, null, 2));
 
   try {
+    // Cloner et nettoyer les données reçues
+    const { id: existingId, _id, ...cleanData } = req.body;
+
     // Nettoyer et valider les données
     const {
-      // Identifiants
-      id: existingId,
       // Informations générales
       icon,
       name,
@@ -87,9 +88,7 @@ const createEquipement = async (req, res) => {
       // Description
       photo,
       desc,
-    } = req.body;
-
-    // Validation des champs obligatoires
+    } = cleanData;
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
@@ -323,11 +322,22 @@ const uploadEquipementPhoto = async (req, res) => {
       throw new Error("URL de l'image non disponible");
     }
 
+    // Mettre à jour l'équipement avec la nouvelle photo
+    await Equipement.findByIdAndUpdate(
+      req.params.id,
+      { 
+        photo: photoUrl,
+        photoPublicId: req.file.public_id || ""
+      },
+      { new: true }
+    );
+
     res.json({
       success: true,
       data: {
         photoUrl: photoUrl,
         filename: req.file.filename || req.file.public_id,
+        publicId: req.file.public_id,
       },
       message: "Photo uploadée avec succès",
     });

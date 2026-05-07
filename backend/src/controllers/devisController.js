@@ -1,408 +1,274 @@
-import Devis from '../models/Devis.js';
+import Devis    from "../models/Devis.js";
+import Commande from "../models/Commande.js";
+import Client   from "../models/Client.js";
 
-// @desc    Récupérer tous les devis
-// @route   GET /api/devis
-// @access  Private
-export const getAllDevis = async (req, res) => {
-  try {
-    console.log("=== RÉCUPÉRATION DES DEVIS ===");
-    
-    const { status, clientId, archived = false } = req.query;
-    let filter = { archived };
-    
-    if (status) filter.status = status;
-    if (clientId) filter.clientId = parseInt(clientId);
-    
-    const devis = await Devis.find(filter).sort({ id: -1 });
-    
-    console.log(`${devis.length} devis trouvés`);
-    
-    res.json({
-      success: true,
-      data: devis
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des devis'
-    });
-  }
+const POPULATE = [
+  { path: "client",   select: "prenom nom tel email adresse quartier" },
+  { path: "commande", select: "reference statut montantTTC" },
+];
+
+// ── Mapping modes de paiement ─────────────────────────────
+const mapMode = (mode) => {
+  const map = { 
+    espece: "cash_magasin", 
+    cheque: "virement", 
+    mobile: "virement" 
+  };
+  return map[mode] || mode;
 };
 
-// @desc    Récupérer un devis par son ID
-// @route   GET /api/devis/:id
-// @access  Private
-export const getDevisById = async (req, res) => {
+// GET /api/devis
+const getAllDevis = async (req, res) => {
   try {
-    console.log(`=== RÉCUPÉRATION DEVIS ID: ${req.params.id} ===`);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    console.log(`Devis trouvé: ${devis.reference}`);
-    
-    res.json({
-      success: true,
-      data: devis
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération du devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération du devis'
-    });
-  }
-};
+    const filter = { archived: false };
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.client) filter.client = req.query.client;
 
-// @desc    Créer un nouveau devis
-// @route   POST /api/devis
-// @access  Private
-export const createDevis = async (req, res) => {
-  try {
-    console.log("=== CRÉATION DEVIS ===");
-    console.log("Body reçu:", req.body);
-    
-    const { type = 'devis' } = req.body;
-    
-    // Générer l'ID et la référence automatiquement
-    const id = await Devis.getNextId();
-    const reference = await Devis.getNextReference(type);
-    
-    const devisData = {
-      ...req.body,
-      id,
-      reference,
-      createdBy: req.user?.name || 'System'
-    };
-    
-    console.log("Données complètes:", devisData);
-    
-    const devis = new Devis(devisData);
-    const savedDevis = await devis.save();
-    
-    console.log(`Devis créé: ${savedDevis.reference}`);
-    
-    res.status(201).json({
-      success: true,
-      data: savedDevis,
-      message: 'Devis créé avec succès'
-    });
-  } catch (error) {
-    console.error("=== ERREUR CRÉATION DEVIS ===");
-    console.error(error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cette référence de devis existe déjà'
-      });
-    }
-    
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de la création du devis',
-      error: error.message
-    });
-  }
-};
+    const devis = await Devis.find(filter).populate(POPULATE).sort({ createdAt: -1 });
 
-// @desc    Mettre à jour un devis
-// @route   PUT /api/devis/:id
-// @access  Private
-export const updateDevis = async (req, res) => {
-  try {
-    console.log(`=== MISE À JOUR DEVIS ID: ${req.params.id} ===`);
-    console.log("Body reçu:", req.body);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    // Vérifier si le devis peut être modifié
-    if (devis.status === 'accepted' || devis.status === 'converted') {
-      return res.status(400).json({
-        success: false,
-        message: 'Impossible de modifier un devis accepté ou converti'
-      });
-    }
-    
-    const updatedDevis = await Devis.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      { 
-        ...req.body, 
-        updatedBy: req.user?.name || 'System'
-      },
-      { new: true, runValidators: true }
-    );
-    
-    console.log(`Devis mis à jour: ${updatedDevis.reference}`);
-    
-    res.json({
-      success: true,
-      data: updatedDevis,
-      message: 'Devis mis à jour avec succès'
-    });
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour du devis:", error);
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de la mise à jour du devis',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Supprimer un devis
-// @route   DELETE /api/devis/:id
-// @access  Private
-export const deleteDevis = async (req, res) => {
-  try {
-    console.log(`=== SUPPRESSION DEVIS ID: ${req.params.id} ===`);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    // Vérifier si le devis peut être supprimé
-    if (devis.status === 'accepted' || devis.status === 'converted') {
-      return res.status(400).json({
-        success: false,
-        message: 'Impossible de supprimer un devis accepté ou converti'
-      });
-    }
-    
-    await Devis.findOneAndDelete({ id: parseInt(req.params.id) });
-    
-    console.log(`Devis supprimé: ${devis.reference}`);
-    
-    res.json({
-      success: true,
-      message: 'Devis supprimé avec succès'
-    });
-  } catch (error) {
-    console.error("Erreur lors de la suppression du devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la suppression du devis'
-    });
-  }
-};
-
-// @desc    Envoyer un devis
-// @route   PUT /api/devis/:id/send
-// @access  Private
-export const sendDevis = async (req, res) => {
-  try {
-    console.log(`=== ENVOI DEVIS ID: ${req.params.id} ===`);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    if (devis.status !== 'draft') {
-      return res.status(400).json({
-        success: false,
-        message: 'Seuls les devis en brouillon peuvent être envoyés'
-      });
-    }
-    
-    const updatedDevis = await Devis.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      { 
-        status: 'sent',
-        dateEnvoi: new Date().toLocaleDateString('fr-FR'),
-        envoyePar: req.user?.name || 'System',
-        updatedBy: req.user?.name || 'System'
-      },
-      { new: true }
-    );
-    
-    console.log(`Devis envoyé: ${updatedDevis.reference}`);
-    
-    res.json({
-      success: true,
-      data: updatedDevis,
-      message: 'Devis envoyé avec succès'
-    });
-  } catch (error) {
-    console.error("Erreur lors de l'envoi du devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de l\'envoi du devis'
-    });
-  }
-};
-
-// @desc    Accepter un devis
-// @route   PUT /api/devis/:id/accept
-// @access  Private
-export const acceptDevis = async (req, res) => {
-  try {
-    console.log(`=== ACCEPTATION DEVIS ID: ${req.params.id} ===`);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    if (devis.status !== 'sent') {
-      return res.status(400).json({
-        success: false,
-        message: 'Seuls les devis envoyés peuvent être acceptés'
-      });
-    }
-    
-    const updatedDevis = await Devis.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      { 
-        status: 'accepted',
-        dateAcceptation: new Date().toLocaleDateString('fr-FR'),
-        acceptePar: req.user?.name || 'System',
-        updatedBy: req.user?.name || 'System'
-      },
-      { new: true }
-    );
-    
-    console.log(`Devis accepté: ${updatedDevis.reference}`);
-    
-    res.json({
-      success: true,
-      data: updatedDevis,
-      message: 'Devis accepté avec succès'
-    });
-  } catch (error) {
-    console.error("Erreur lors de l'acceptation du devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de l\'acceptation du devis'
-    });
-  }
-};
-
-// @desc    Convertir un devis en commande
-// @route   POST /api/devis/:id/convert
-// @access  Private
-export const convertDevis = async (req, res) => {
-  try {
-    console.log(`=== CONVERSION DEVIS ID: ${req.params.id} ===`);
-    
-    const devis = await Devis.findOne({ id: parseInt(req.params.id) });
-    
-    if (!devis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Devis non trouvé'
-      });
-    }
-    
-    if (devis.status !== 'accepted') {
-      return res.status(400).json({
-        success: false,
-        message: 'Seuls les devis acceptés peuvent être convertis'
-      });
-    }
-    
-    // Ici vous pourriez créer une commande à partir du devis
-    // Pour l'instant, on marque juste comme converti
-    const cmdRef = `CMD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-    
-    const updatedDevis = await Devis.findOneAndUpdate(
-      { id: parseInt(req.params.id) },
-      { 
-        status: 'converted',
-        convertedToCmdRef: cmdRef,
-        updatedBy: req.user?.name || 'System'
-      },
-      { new: true }
-    );
-    
-    console.log(`Devis converti: ${updatedDevis.reference} -> ${cmdRef}`);
-    
-    res.json({
-      success: true,
-      data: updatedDevis,
-      cmdRef,
-      message: 'Devis converti en commande avec succès'
-    });
-  } catch (error) {
-    console.error("Erreur lors de la conversion du devis:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la conversion du devis'
-    });
-  }
-};
-
-// @desc    Obtenir les statistiques des devis
-// @route   GET /api/devis/stats
-// @access  Private
-export const getDevisStats = async (req, res) => {
-  try {
-    console.log("=== STATISTIQUES DEVIS ===");
-    
-    const total = await Devis.countDocuments({ archived: false });
-    const draft = await Devis.countDocuments({ status: 'draft', archived: false });
-    const sent = await Devis.countDocuments({ status: 'sent', archived: false });
-    const accepted = await Devis.countDocuments({ status: 'accepted', archived: false });
-    const rejected = await Devis.countDocuments({ status: 'rejected', archived: false });
-    const expired = await Devis.countDocuments({ status: 'expired', archived: false });
-    const converted = await Devis.countDocuments({ status: 'converted', archived: false });
-    
-    // Calcul du montant total des devis
-    const montants = await Devis.aggregate([
-      { $match: { archived: false } },
-      { $group: { _id: null, total: { $sum: '$montantTTC' } } }
-    ]);
-    
     const stats = {
-      total,
-      draft,
-      sent,
-      accepted,
-      rejected,
-      expired,
-      converted,
-      totalAmount: montants[0]?.total || 0,
-      conversionRate: total > 0 ? Math.round((converted / total) * 100) : 0
+      total:     devis.length,
+      draft:     devis.filter(d => d.status === "draft").length,
+      sent:      devis.filter(d => d.status === "sent").length,
+      accepted:  devis.filter(d => d.status === "accepted").length,
+      rejected:  devis.filter(d => d.status === "rejected").length,
+      expired:   devis.filter(d => d.status === "expired").length,
+      converted: devis.filter(d => d.status === "converted").length,
+      totalCA:   devis.filter(d => d.status === "converted").reduce((s, d) => s + d.montantTTC, 0),
     };
-    
-    console.log("Statistiques:", stats);
-    
+
+    res.json({ success: true, data: devis, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/devis/stats
+const getDevisStats = async (req, res) => {
+  try {
+    const devis = await Devis.find({ archived: false });
     res.json({
       success: true,
-      data: stats
+      data: {
+        total:          devis.length,
+        draft:          devis.filter(d => d.status === "draft").length,
+        sent:           devis.filter(d => d.status === "sent").length,
+        accepted:       devis.filter(d => d.status === "accepted").length,
+        rejected:       devis.filter(d => d.status === "rejected").length,
+        expired:        devis.filter(d => d.status === "expired").length,
+        converted:      devis.filter(d => d.status === "converted").length,
+        conversionRate: devis.length > 0
+          ? Math.round((devis.filter(d => d.status === "converted").length / devis.length) * 100)
+          : 0,
+      }
     });
   } catch (error) {
-    console.error("Erreur lors de la récupération des statistiques:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des statistiques'
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
+};
+
+// GET /api/devis/:id
+const getDevisById = async (req, res) => {
+  try {
+    const devis = await Devis.findById(req.params.id).populate(POPULATE);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    res.json({ success: true, data: devis });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/devis
+const createDevis = async (req, res) => {
+  try {
+    const { client, clientNom, clientEmail, clientAdresse, dateValidite, lignes, ...rest } = req.body;
+
+    if (!client)       return res.status(400).json({ success: false, message: "Client requis" });
+    if (!dateValidite) return res.status(400).json({ success: false, message: "Date de validité requise" });
+    if (!lignes?.length) return res.status(400).json({ success: false, message: "Au moins une ligne requise" });
+
+    // Enrichir avec les infos client si pas fournies
+    let nom = clientNom, email = clientEmail, adresse = clientAdresse;
+    if (!nom) {
+      const c = await Client.findById(client);
+      if (c) {
+        nom    = `${c.prenom} ${c.nom}`;
+        email  = c.email  || "";
+        adresse = `${c.adresse || ""} ${c.quartier || ""}`.trim();
+      }
+    }
+
+    const devis = await Devis.create({
+      ...rest, client, lignes,
+      clientNom: nom || "", clientEmail: email || "", clientAdresse: adresse || "",
+      dateValidite: new Date(dateValidite),
+      createdBy: req.user?.name || "Admin",
+    });
+
+    const populated = await Devis.findById(devis._id).populate(POPULATE);
+    res.status(201).json({ success: true, data: populated, message: "Devis créé avec succès" });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ success: false, message: "Erreur de validation", errors: Object.values(error.errors).map(e => e.message) });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/devis/:id
+const updateDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findById(req.params.id);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    if (["converted"].includes(devis.status)) {
+      return res.status(400).json({ success: false, message: "Impossible de modifier un devis converti" });
+    }
+
+    const updates = { ...req.body };
+    if (updates.dateValidite) updates.dateValidite = new Date(updates.dateValidite);
+
+    const updated = await Devis.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).populate(POPULATE);
+    res.json({ success: true, data: updated, message: "Devis mis à jour" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/devis/:id
+const deleteDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findById(req.params.id);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+
+    if (devis.status === "accepted") {
+      return res.status(400).json({ success: false, message: "Impossible de supprimer un devis accepté" });
+    }
+
+    if (devis.status === "converted" && devis.commande) {
+      const commande = await Commande.findById(devis.commande);
+      if (commande) {
+        return res.status(400).json({ success: false, message: "Impossible de supprimer — commande active liée" });
+      }
+      // Commande supprimée → on continue et on supprime le devis
+    }
+
+    await devis.deleteOne();
+    res.json({ success: true, message: "Devis supprimé" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/devis/:id/send
+const sendDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findByIdAndUpdate(req.params.id,
+      { status: "sent", dateEnvoi: new Date() },
+      { new: true }
+    ).populate(POPULATE);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    res.json({ success: true, data: devis, message: "Devis envoyé" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/devis/:id/accept
+const acceptDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findByIdAndUpdate(req.params.id,
+      { status: "accepted", dateAcceptation: new Date() },
+      { new: true }
+    ).populate(POPULATE);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    res.json({ success: true, data: devis, message: "Devis accepté ✅" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/devis/:id/reject
+const rejectDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findByIdAndUpdate(req.params.id,
+      { status: "rejected" },
+      { new: true }
+    ).populate(POPULATE);
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    res.json({ success: true, data: devis, message: "Devis refusé" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/devis/:id/convert — Convertit en vraie Commande MongoDB
+const convertDevis = async (req, res) => {
+  try {
+    const devis = await Devis.findById(req.params.id).populate("client");
+    if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
+    if (devis.status !== "accepted") {
+      return res.status(400).json({ success: false, message: "Seuls les devis acceptés peuvent être convertis" });
+    }
+
+    const { dateDebut, dateFin, modePaiement, equipement, unite } = req.body;
+    console.log("Conversion devis:", { 
+      devisId: req.params.id, 
+      devisRef: devis.reference, 
+      client: devis.client._id, 
+      equipement, 
+      dateDebut, 
+      dateFin, 
+      modePaiement 
+    });
+
+    const commande = await Commande.create({
+      client:       devis.client._id,
+      equipement:   equipement || null,
+      unite:        unite      || null,
+      dateDebut:    dateDebut  ? new Date(dateDebut)  : new Date(),
+      dateFin:      dateFin    ? new Date(dateFin)    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      modePaiement: mapMode(modePaiement || "espece"),
+      montantHT:    devis.montantHT,
+      montantTVA:   devis.montantTVA,
+      montantTTC:   devis.montantTTC,
+      statut:       "pending",
+      note:         `Converti depuis devis ${devis.reference}`,
+    });
+
+    console.log("Commande créée:", { 
+      commandeId: commande._id, 
+      commandeRef: commande.reference, 
+      clientId: commande.client,
+      montant: commande.montantTTC 
+    });
+
+    const updatedDevis = await Devis.findByIdAndUpdate(req.params.id, {
+      status:   "converted",
+      commande: commande._id,
+    }, { new: true }).populate(POPULATE);
+
+    console.log("Devis mis à jour:", { 
+      devisId: updatedDevis._id, 
+      devisRef: updatedDevis.reference, 
+      newStatus: updatedDevis.status,
+      commandeId: updatedDevis.commande._id 
+    });
+
+    res.json({
+      success: true,
+      data:    updatedDevis,
+      commande,
+      message: `Devis converti → Commande ${commande.reference}`,
+    });
+  } catch (error) {
+    console.error("ERREUR convertDevis:", error.message);
+    console.error("Stack:", error.stack);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export {
+  getAllDevis, getDevisById, getDevisStats,
+  createDevis, updateDevis, deleteDevis,
+  sendDevis, acceptDevis, rejectDevis, convertDevis,
 };

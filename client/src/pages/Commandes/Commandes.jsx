@@ -1,306 +1,188 @@
-// src/pages/Commandes/Commandes.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { useCommandes } from "./hooks/useCommandes.js";
-import ClientService from "../../services/clientService.js";
-import EquipementService from "../../services/equipementService.js";
-import UnitService from "../../services/unitService.js";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import CommandeStats from "./components/CommandeStats";
+import api from "../../api";
+import commandeService from "../../services/commandeService";
+import clientService   from "../../services/clientService";
+import equipementService from "../../services/equipementService";
+import unitService     from "../../services/unitService";
+import CommandeStats   from "./components/CommandeStats";
 import CommandeFilters from "./components/CommandeFilters";
-import CommandeTable from "./components/CommandeTable";
-import CommandeModal from "./components/CommandeModal";
+import CommandeTable   from "./components/CommandeTable";
+import CommandeModal   from "./components/CommandeModal";
+import ReceiptModal    from "./components/ReceiptModal";
+
+const EMPTY_FORM = {
+  client:         "",   // ObjectId
+  equipement:     "",   // ObjectId
+  unite:          "",   // ObjectId
+  dateDebut:      "",
+  dateFin:        "",
+  modePaiement:   "cash_magasin",
+  montantHT:      0,
+  tauxTVA:        20,
+  montantTTC:     0,
+  montantCaution: 0,
+  modeCaution:    "cash",
+  note:           "",
+};
 
 const Commandes = () => {
-  // ── Hook personnalisé ──
-  const {
-    commandes: rawCommandes,
-    loading,
-    error,
-    createCommande,
-    updateCommande,
-    deleteCommande,
-    reconduireCommande,
-    updateStatus,
-    validateCommande,
-    resetCommandeForm,
-    calculateAmounts,
-  } = useCommandes();
-
-  // ── États locaux ──
-  const [commandes, setCommandes] = useState([]);
-  const [clients, setClients] = useState([]);
+  const navigate = useNavigate();
+  const [commandes, setCommandes]     = useState([]);
+  const [clients, setClients]         = useState([]);
   const [equipements, setEquipements] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [units, setUnits]             = useState([]);
+  const [societe, setSociete]         = useState({});
+  const [loading, setLoading]         = useState(true);
+  const [searchTerm, setSearchTerm]   = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [showModal, setShowModal]     = useState(false);
+  const [editMode, setEditMode]       = useState(false);
   const [selectedCommande, setSelectedCommande] = useState(null);
-  const [formData, setFormData] = useState(resetCommandeForm());
+  const [formData, setFormData]       = useState(EMPTY_FORM);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptCmd, setReceiptCmd]   = useState(null);
 
-  useEffect(() => {
-    loadRelatedData();
-  }, []);
-
-  // Synchroniser les commandes formatées avec les données brutes
-  useEffect(() => {
-    if (rawCommandes.length > 0) {
-      const formattedCommandes = rawCommandes.map((cmd) => {
-        // Trouver le client - mapper l'ID numérique vers l'ObjectId
-        const client = clients.find((c) => {
-          // Si c'est un ancien client avec id numérique
-          if (c.id && c.id === cmd.clientId) {
-            return true;
-          }
-          // Si c'est un nouveau client avec ObjectId
-          if (c._id === cmd.clientId) {
-            return true;
-          }
-          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
-          // 69 -> 69f14cb53ffbdd2c36dd2a1a (client Michel)
-          const idMapping = {
-            69: "69f14cb53ffbdd2c36dd2a1a",
-            70: "69eea2846ceb3a878d6f2bb7",
-            71: "69ef587a0e12210a116ce4bf",
-          };
-          return c._id === idMapping[cmd.clientId];
-        });
-        const clientName = client
-          ? `${client.prenom} ${client.nom}`
-          : `Client ${cmd.clientId}`;
-
-        // Trouver l'équipement - mapper l'ID numérique vers l'ObjectId
-        const equipement = equipements.find((e) => {
-          // Si c'est un ancien équipement avec id numérique
-          if (e.id && e.id === cmd.equipId) {
-            return true;
-          }
-          // Si c'est un nouvel équipement avec ObjectId
-          if (e._id === cmd.equipId) {
-            return true;
-          }
-          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
-          const idMapping = {
-            69: "69eea2846ceb3a878d6f2bb7",
-            70: "69eea2846ceb3a878d6f2bb8",
-            71: "69eea2846ceb3a878d6f2bb9",
-          };
-          return e._id === idMapping[cmd.equipId];
-        });
-        const equipName = equipement
-          ? `${equipement.icon} ${equipement.name}`
-          : `Équipement ${cmd.equipId}`;
-
-        // Trouver l'unité - mapper l'ID numérique vers l'ObjectId
-        const unit = units.find((u) => {
-          // Si c'est une ancienne unité avec id numérique
-          if (u.id && u.id === cmd.unitId) {
-            return true;
-          }
-          // Si c'est une nouvelle unité avec ObjectId
-          if (u._id === cmd.unitId) {
-            return true;
-          }
-          // Mapper les anciens IDs numériques vers les nouveaux ObjectIds
-          const idMapping = {
-            69: "69ef587a0e12210a116ce4bf",
-            70: "69ef587a0e12210a116ce4c0",
-            71: "69ef587a0e12210a116ce4c1",
-          };
-          return u._id === idMapping[cmd.unitId];
-        });
-        const unitSerial = unit ? unit.serial : null;
-
-        const formatted = {
-          ...cmd,
-          client: clientName,
-          equipement: equipName,
-          unitSerial: unitSerial,
-          caution:
-            cmd.caution !== 0 && cmd.caution !== undefined ? cmd.caution : null,
-        };
-        return formatted;
-      });
-      setCommandes(formattedCommandes);
-    }
-  }, [rawCommandes, clients, equipements, units]);
-
-  const loadRelatedData = async () => {
-    const retryWithDelay = async (
-      serviceCall,
-      serviceName,
-      maxRetries = 2,
-      delay = 2000,
-    ) => {
-      for (let i = 0; i < maxRetries; i++) {
-        try {
-          return await serviceCall();
-        } catch (error) {
-          if (
-            (error.message.includes("Trop de requêtes") ||
-              error.message.includes("Too Many Requests")) &&
-            i < maxRetries - 1
-          ) {
-            console.warn(
-              `Erreur ${serviceName}, tentative ${i + 1}/${maxRetries}, retry dans ${delay}ms...`,
-            );
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            delay *= 2; // Exponential backoff
-          } else {
-            throw error;
-          }
-        }
-      }
-    };
-
+  // ── Chargement ────────────────────────────────────────────
+  const loadData = useCallback(async () => {
     try {
-      // Charger les vraies données depuis l'API avec retry
-      const [clientsData, equipementsData, unitsData] = await Promise.all([
-        retryWithDelay(() => ClientService.getAllClients(), "Clients"),
-        retryWithDelay(
-          () => EquipementService.getAllEquipements(),
-          "Équipements",
-        ),
-        retryWithDelay(() => UnitService.getAllUnits(), "Unités"),
-      ]);
-
+      setLoading(true);
+      const [commandesData, clientsData, equipementsData, unitsData, societeData] =
+        await Promise.all([
+          commandeService.getAll(),
+          clientService.getAll(),
+          equipementService.getAll(),
+          unitService.getAll(),
+          api.get("/societe").then(r => r.data?.data || r.data).catch(() => ({})),
+        ]);
+      setCommandes(commandesData);
       setClients(clientsData);
       setEquipements(equipementsData);
       setUnits(unitsData);
+      setSociete(societeData || {});
     } catch (error) {
-      console.error("Erreur lors du chargement des données liées:", error);
-      // Ne pas utiliser les données mockées - laisser l'erreur se propager
-      throw error;
+      console.error("Erreur chargement commandes:", error);
+      toast.error("Erreur de chargement");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Filtrage ──────────────────────────────────────────────
   const filtered = commandes.filter((c) => {
+    const clientNom = c.client
+      ? `${c.client.prenom || ""} ${c.client.nom || ""}`.toLowerCase()
+      : "";
     const matchSearch =
-      c.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.client && c.client.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchStatus = !statusFilter || c.status === statusFilter;
+      c.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clientNom.includes(searchTerm.toLowerCase());
+    const matchStatus = !statusFilter || c.statut === statusFilter;
     return matchSearch && matchStatus;
   });
 
+  // ── KPIs ──────────────────────────────────────────────────
+  const kpis = {
+    total:       commandes.length,
+    actives:     commandes.filter((c) => c.statut === "active").length,
+    pending:     commandes.filter((c) => c.statut === "pending").length,
+    totalAmount: commandes.reduce((sum, c) => sum + (c.montantTTC || 0), 0),
+  };
+
+  // ── CRUD ──────────────────────────────────────────────────
   const handleAdd = () => {
     setEditMode(false);
-    setFormData(resetCommandeForm());
-    setShowAddModal(true);
+    setFormData(EMPTY_FORM);
+    setShowModal(true);
   };
 
   const handleEdit = (commande) => {
     setEditMode(true);
     setSelectedCommande(commande);
     setFormData({
-      clientId: commande.clientId,
-      equipId: commande.equipId,
-      unitId: commande.unitId || "",
-      start: commande.start.split("/").reverse().join("-"),
-      end: commande.end.split("/").reverse().join("-"),
-      pay: commande.pay,
-      amountHT: commande.amountHT || 0,
-      tvaRate: commande.tvaRate || 20,
-      amountTTC: commande.amountTTC || 0,
-      caution: commande.caution || 0,
-      cautionMode: commande.cautionMode || "Cash",
-      lines: commande.lines || [],
-      note: commande.note || "",
+      client:         commande.client?._id || commande.client,
+      equipement:     commande.equipement?._id || commande.equipement,
+      unite:          commande.unite?._id || commande.unite || "",
+      dateDebut:      commande.dateDebut?.split("T")[0] || "",
+      dateFin:        commande.dateFin?.split("T")[0] || "",
+      modePaiement:   commande.modePaiement || "cash_magasin",
+      montantHT:      commande.montantHT || 0,
+      tauxTVA:        commande.tauxTVA || 20,
+      montantTTC:     commande.montantTTC || 0,
+      montantCaution: commande.montantCaution || 0,
+      modeCaution:    commande.modeCaution || "cash",
+      note:           commande.note || "",
     });
-    setShowAddModal(true);
+    setShowModal(true);
   };
 
   const handleSave = async () => {
     try {
-      const validation = validateCommande(formData);
-      if (!validation.isValid) {
-        toast.error(
-          "Veuillez corriger les erreurs: " +
-            Object.values(validation.errors).join(", "),
-        );
-        return;
-      }
+      if (!formData.client)     return toast.error("Client requis");
+      if (!formData.equipement) return toast.error("Équipement requis");
+      if (!formData.dateDebut)  return toast.error("Date de début requise");
+      if (!formData.dateFin)    return toast.error("Date de fin requise");
+      if (!formData.montantTTC) return toast.error("Montant TTC requis");
 
       if (editMode && selectedCommande) {
-        await updateCommande(selectedCommande.id, formData);
+        await commandeService.update(selectedCommande._id, formData);
+        toast.success("Commande mise à jour");
       } else {
-        await createCommande(formData);
+        await commandeService.create(formData);
+        toast.success("Commande créée");
       }
-      setShowAddModal(false);
-    } catch (err) {
-      console.error("Erreur lors de la sauvegarde:", err);
-      toast.error("Erreur lors de la sauvegarde");
+      setShowModal(false);
+      await loadData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erreur lors de la sauvegarde");
     }
   };
 
   const handleDelete = async (id) => {
-    if (confirm("Supprimer cette commande ?")) {
-      try {
-        await deleteCommande(id);
-      } catch (err) {
-        console.error("Erreur lors de la suppression:", err);
-        toast.error("Erreur lors de la suppression");
-      }
+    if (!confirm("Supprimer cette commande ?")) return;
+    try {
+      await commandeService.delete(id);
+      toast.success("Commande supprimée");
+      await loadData();
+    } catch (error) {
+      toast.error("Erreur lors de la suppression");
     }
   };
 
-  const handleReconduire = async (commande) => {
+  const handleStatusChange = async (commande, newStatut) => {
     try {
-      const newEnd = prompt("Nouvelle date de fin (DD/MM/YYYY):");
-      if (newEnd) {
-        await reconduireCommande(commande.id, "prolongation", newEnd);
-      }
-    } catch (err) {
-      console.error("Erreur lors de la reconduction:", err);
-      toast.error("Erreur lors de la reconduction");
-    }
-  };
-
-  const handleStatusChange = async (commande, newStatus) => {
-    try {
-      await updateStatus(commande.id, newStatus);
-    } catch (err) {
-      console.error("Erreur lors du changement de statut:", err);
+      await commandeService.updateStatut(commande._id, newStatut);
+      toast.success("Statut mis à jour");
+      await loadData();
+    } catch (error) {
       toast.error("Erreur lors du changement de statut");
     }
   };
 
-  const kpis = {
-    total: commandes.length,
-    actives: commandes.filter((c) => c.status === "active").length,
-    pending: commandes.filter((c) => c.status === "pending").length,
-    totalAmount: commandes.reduce((sum, c) => sum + (c.amountTTC || 0), 0),
+  const handleReconduire = async (commande) => {
+    const newEnd = prompt("Nouvelle date de fin (YYYY-MM-DD) :");
+    if (!newEnd) return;
+    try {
+      await commandeService.reconduire(commande._id, {
+        type: "prolongation",
+        dateFin: newEnd,
+      });
+      toast.success("Commande reconduite");
+      await loadData();
+    } catch (error) {
+      toast.error("Erreur lors de la reconduction");
+    }
   };
 
-  // Gestion des états de chargement et d'erreur
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="text-slate-400">Chargement des commandes...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">⚠️</span>
-          </div>
-          <div className="text-red-600 font-semibold mb-2">
-            Erreur de chargement
-          </div>
-          <div className="text-slate-500 text-sm mb-4">{error}</div>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Réessayer
-          </button>
         </div>
       </div>
     );
@@ -346,20 +228,27 @@ const Commandes = () => {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <CommandeTable
           commandes={filtered}
-          onRowClick={handleEdit}
-          onReconduire={handleReconduire}
-          onDevis={(cmd) => console.log("Devis", cmd)}
           onEdit={handleEdit}
-          onReceipt={(cmd) => console.log("Reçu", cmd)}
-          onStatusChange={handleStatusChange}
           onDelete={handleDelete}
+          onStatusChange={handleStatusChange}
+          onReconduire={handleReconduire}
+          onDevis={(cmd) => {
+            // Rediriger vers la page des devis avec l'ID du devis associé à cette commande
+            if (cmd.devis) {
+              navigate(`/devis?view=${cmd.devis}`);
+            } else {
+              toast.info("Aucun devis associé à cette commande");
+              navigate("/devis");
+            }
+          }}
+          onReceipt={(cmd) => { setReceiptCmd(cmd); setShowReceipt(true); }}
         />
       </div>
 
-      {/* Modal */}
+      {/* Modal commande */}
       <CommandeModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
         editMode={editMode}
         formData={formData}
         setFormData={setFormData}
@@ -367,6 +256,14 @@ const Commandes = () => {
         equipements={equipements}
         units={units}
         onSave={handleSave}
+      />
+
+      {/* Modal reçu */}
+      <ReceiptModal
+        isOpen={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        commande={receiptCmd}
+        societe={societe}
       />
     </div>
   );

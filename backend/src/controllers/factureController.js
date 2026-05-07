@@ -1,332 +1,200 @@
-// backend/src/controllers/factureController.js
-import Facture from '../models/Facture.js';
+import Facture  from "../models/Facture.js";
+import Client   from "../models/Client.js";
+import Commande from "../models/Commande.js";
 
-// @desc    Récupérer toutes les factures
-// @route   GET /api/factures
-// @access  Private
+const POPULATE = [
+  { path: "client",   select: "prenom nom tel email adresse quartier cin" },
+  { path: "commande", select: "reference montantTTC dateDebut dateFin statut" },
+];
+
+// GET /api/factures
 export const getAllFactures = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, type, clientId } = req.query;
     const filter = {};
-    
-    if (status) filter.status = status;
-    if (type) filter.type = type;
-    if (clientId) filter.clientId = parseInt(clientId);
-    
+    if (req.query.status)   filter.status   = req.query.status;
+    if (req.query.type)     filter.type     = req.query.type;
+    if (req.query.client)   filter.client   = req.query.client;
+    if (req.query.archived) filter.archived = req.query.archived === "true";
+    else                    filter.archived = false;
+
+    if (req.query.search) {
+      filter.$or = [
+        { num:       new RegExp(req.query.search, "i") },
+        { clientNom: new RegExp(req.query.search, "i") },
+      ];
+    }
+
     const factures = await Facture.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-    
-    const total = await Facture.countDocuments(filter);
-    
-    res.json({
-      success: true,
-      data: factures,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
+      .populate(POPULATE)
+      .sort({ createdAt: -1 });
+
+    // Stats inline
+    const stats = {
+      total:        factures.length,
+      paid:         factures.filter(f => f.status === "paid").length,
+      unpaid:       factures.filter(f => f.status === "unpaid").length,
+      draft:        factures.filter(f => f.status === "draft").length,
+      totalCA:      factures.filter(f => f.status === "paid").reduce((s, f) => s + f.montantTTC, 0),
+      totalRestant: factures.filter(f => ["unpaid","partial","sent"].includes(f.status)).reduce((s, f) => s + f.montantRestant, 0),
+    };
+
+    res.json({ success: true, data: factures, stats });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des factures',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Récupérer une facture par son ID
-// @route   GET /api/factures/:id
-// @access  Private
+// GET /api/factures/:id
 export const getFactureById = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
-    
-    if (!facture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Facture non trouvée'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: facture
-    });
+    const facture = await Facture.findById(req.params.id).populate(POPULATE);
+    if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
+    res.json({ success: true, data: facture });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération de la facture',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Créer une nouvelle facture
-// @route   POST /api/factures
-// @access  Private
+// POST /api/factures
 export const createFacture = async (req, res) => {
   try {
-    console.log("=== CRÉATION FACTURE ===");
-    console.log("Body reçu:", req.body);
-    
-    const { type = 'facture' } = req.body;
-    console.log("Type extrait:", type);
-    
-    // Générer le numéro automatiquement
+    console.log("POST /api/factures body:", JSON.stringify(req.body, null, 2));
+    const { type = "facture", client, commande } = req.body;
+
+    // Auto-générer le numéro
     const num = await Facture.getNextNumero(type);
-    console.log("Numéro généré:", num);
-    
-    const factureData = {
+
+    // Dénormaliser le nom client
+    let clientNom = req.body.clientNom || "";
+    if (client && !clientNom) {
+      const c = await Client.findById(client);
+      if (c) clientNom = `${c.prenom} ${c.nom}`;
+    }
+
+    // Convertir les dates
+    const date         = req.body.date         ? new Date(req.body.date)         : new Date();
+    const dateEcheance = req.body.dateEcheance ? new Date(req.body.dateEcheance) : null;
+
+    const facture = new Facture({
       ...req.body,
       num,
-      createdBy: req.user?.name || 'System'
-    };
-    console.log("Données complètes:", factureData);
-    
-    const facture = new Facture(factureData);
-    console.log("Instance Facture créée");
-    
-    const savedFacture = await facture.save();
-    console.log("Facture sauvegardée:", savedFacture);
-    
-    res.status(201).json({
-      success: true,
-      data: savedFacture,
-      message: 'Facture créée avec succès'
+      client:        client   || null,
+      commande:      commande || null,
+      clientNom,
+      date,
+      dateEcheance,
+      createdBy:     req.user?.name || "System",
     });
+
+    const saved = await facture.save();
+    const populated = await Facture.findById(saved._id).populate(POPULATE);
+
+    res.status(201).json({ success: true, data: populated, message: "Facture créée avec succès" });
   } catch (error) {
-    console.error("=== ERREUR CRÉATION FACTURE ===");
-    console.error("Type d'erreur:", error.name);
-    console.error("Message d'erreur:", error.message);
-    console.error("Détails:", error);
-    
     if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: "Ce numéro de facture existe déjà" });
+    }
+    if (error.name === "ValidationError") {
       return res.status(400).json({
         success: false,
-        message: 'Ce numéro de facture existe déjà'
+        message: "Erreur de validation",
+        errors: Object.values(error.errors).map(e => e.message),
       });
     }
-    
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de la création de la facture',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Mettre à jour une facture
-// @route   PUT /api/factures/:id
-// @access  Private
+// PUT /api/factures/:id
 export const updateFacture = async (req, res) => {
   try {
     const facture = await Facture.findById(req.params.id);
-    
-    if (!facture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Facture non trouvée'
-      });
+    if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
+    if (facture.status === "paid") {
+      return res.status(400).json({ success: false, message: "Impossible de modifier une facture payée" });
     }
-    
-    // Empêcher la modification si déjà payée
-    if (facture.status === 'paid') {
-      return res.status(400).json({
-        success: false,
-        message: 'Impossible de modifier une facture déjà payée'
-      });
-    }
-    
-    const updatedFacture = await Facture.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    res.json({
-      success: true,
-      data: updatedFacture,
-      message: 'Facture mise à jour avec succès'
-    });
+
+    const updates = { ...req.body };
+    if (updates.date)         updates.date         = new Date(updates.date);
+    if (updates.dateEcheance) updates.dateEcheance = new Date(updates.dateEcheance);
+
+    const updated = await Facture.findByIdAndUpdate(
+      req.params.id, updates, { new: true, runValidators: true }
+    ).populate(POPULATE);
+
+    res.json({ success: true, data: updated, message: "Facture mise à jour" });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de la mise à jour de la facture',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Supprimer une facture
-// @route   DELETE /api/factures/:id
-// @access  Private
+// DELETE /api/factures/:id
 export const deleteFacture = async (req, res) => {
   try {
     const facture = await Facture.findById(req.params.id);
-    
-    if (!facture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Facture non trouvée'
-      });
+    if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
+    if (facture.status === "paid") {
+      return res.status(400).json({ success: false, message: "Impossible de supprimer une facture payée" });
     }
-    
-    // Empêcher la suppression si déjà payée
-    if (facture.status === 'paid') {
-      return res.status(400).json({
-        success: false,
-        message: 'Impossible de supprimer une facture déjà payée'
-      });
-    }
-    
-    await Facture.findByIdAndDelete(req.params.id);
-    
-    res.json({
-      success: true,
-      message: 'Facture supprimée avec succès'
-    });
+    await facture.deleteOne();
+    res.json({ success: true, message: "Facture supprimée" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la suppression de la facture',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Marquer une facture comme payée
-// @route   POST /api/factures/:id/pay
-// @access  Private
+// POST /api/factures/:id/pay
 export const markAsPaid = async (req, res) => {
   try {
     const { montant, modePaiement } = req.body;
-    
     const facture = await Facture.findById(req.params.id);
-    
-    if (!facture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Facture non trouvée'
-      });
-    }
-    
-    if (facture.status === 'paid') {
-      return res.status(400).json({
-        success: false,
-        message: 'Facture déjà payée'
-      });
-    }
-    
+    if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
+    if (facture.status === "paid") return res.status(400).json({ success: false, message: "Facture déjà payée" });
     await facture.markAsPaid(montant, modePaiement);
-    
-    res.json({
-      success: true,
-      data: facture,
-      message: 'Paiement enregistré avec succès'
-    });
+    const populated = await Facture.findById(facture._id).populate(POPULATE);
+    res.json({ success: true, data: populated, message: "Paiement enregistré" });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de l\'enregistrement du paiement',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Archiver une facture
-// @route   POST /api/factures/:id/archive
-// @access  Private
+// POST /api/factures/:id/archive
 export const archiveFacture = async (req, res) => {
   try {
     const facture = await Facture.findByIdAndUpdate(
-      req.params.id,
-      { archived: true },
-      { new: true }
-    );
-    
-    if (!facture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Facture non trouvée'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: facture,
-      message: 'Facture archivée avec succès'
-    });
+      req.params.id, { archived: true }, { new: true }
+    ).populate(POPULATE);
+    if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
+    res.json({ success: true, data: facture, message: "Facture archivée" });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Erreur lors de l\'archivage de la facture',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Obtenir le prochain numéro de facture
-// @route   GET /api/factures/next-number/:type
-// @access  Private
+// GET /api/factures/next-number/:type
 export const getNextNumero = async (req, res) => {
   try {
-    const { type = 'facture' } = req.params;
-    const numero = await Facture.getNextNumero(type);
-    
-    res.json({
-      success: true,
-      data: { numero }
-    });
+    const numero = await Facture.getNextNumero(req.params.type || "facture");
+    res.json({ success: true, data: { numero } });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la génération du numéro',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Obtenir les statistiques des factures
-// @route   GET /api/factures/stats
-// @access  Private
+// GET /api/factures/stats
 export const getFactureStats = async (req, res) => {
   try {
     const stats = await Facture.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalHT: { $sum: '$montantHT' },
-          totalTTC: { $sum: '$montantTTC' },
-          totalPaye: { $sum: '$montantPaye' }
-        }
-      }
+      { $match: { archived: false } },
+      { $group: {
+        _id:        "$status",
+        count:      { $sum: 1 },
+        totalTTC:   { $sum: "$montantTTC" },
+        totalPaye:  { $sum: "$montantPaye" },
+      }}
     ]);
-    
-    const totalFactures = await Facture.countDocuments();
-    const totalEnRetard = await Facture.countDocuments({
-      status: { $in: ['sent', 'unpaid', 'partial'] },
-      dateEcheance: { $lt: new Date().toLocaleDateString('fr-FR') }
-    });
-    
-    res.json({
-      success: true,
-      data: {
-        byStatus: stats,
-        totalFactures,
-        totalEnRetard
-      }
-    });
+    res.json({ success: true, data: stats });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des statistiques',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

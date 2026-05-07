@@ -262,21 +262,22 @@ const ClientModal = ({ isOpen, onClose, client, setClient, onSave, title, isEdit
             </div>
           </div>
 
-          <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
-            >
-              {isEditing ? "Mettre à jour" : "Créer le dossier client"}
-            </button>
-          </div>
+         <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
+  <button
+    type="button"
+    onClick={onClose}
+    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition"
+  >
+    Annuler
+  </button>
+  <button
+    type="button"
+    onClick={(e) => { e.preventDefault(); onSave(); }}
+    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+  >
+    {isEditing ? "Mettre à jour" : "Créer le dossier client"}
+  </button>
+</div>
         </form>
       </div>
     </div>

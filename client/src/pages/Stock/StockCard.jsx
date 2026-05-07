@@ -29,7 +29,7 @@ const StockCard = ({
 
   return (
     <div
-      className={`bg-white rounded-2xl border ${equip.archived ? "border-gray-200 opacity-70" : "border-slate-100"} shadow-sm overflow-hidden hover:shadow-md transition-all group`}
+      className={`bg-white rounded-2xl border ${equip.archived ? "border-gray-200 opacity-70" : "border-slate-100"} shadow-sm overflow-hidden hover:shadow-md transition-all group `}
     >
       {/* En-tête avec photo / icône */}
       <div className="relative h-32 bg-slate-100">
