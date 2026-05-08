@@ -12,6 +12,8 @@ import CommandeFilters from "./components/CommandeFilters";
 import CommandeTable   from "./components/CommandeTable";
 import CommandeModal   from "./components/CommandeModal";
 import ReceiptModal    from "./components/ReceiptModal";
+import BonEnlevementModal from "./components/BonEnlevementModal";
+import BonRetourModal     from "./components/BonRetourModal";
 
 const EMPTY_FORM = {
   client:         "",   // ObjectId
@@ -44,6 +46,9 @@ const Commandes = () => {
   const [formData, setFormData]       = useState(EMPTY_FORM);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptCmd, setReceiptCmd]   = useState(null);
+  const [showBonEnl, setShowBonEnl] = useState(false);
+  const [showBonRet, setShowBonRet] = useState(false);
+  const [selected, setSelected]       = useState(null);
 
   // ── Chargement ────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -242,6 +247,8 @@ const Commandes = () => {
             }
           }}
           onReceipt={(cmd) => { setReceiptCmd(cmd); setShowReceipt(true); }}
+          onBonEnl={(cmd) => { setSelected(cmd); setShowBonEnl(true); }}
+          onBonRet={(cmd) => { setSelected(cmd); setShowBonRet(true); }}
         />
       </div>
 
@@ -263,6 +270,22 @@ const Commandes = () => {
         isOpen={showReceipt}
         onClose={() => setShowReceipt(false)}
         commande={receiptCmd}
+        societe={societe}
+      />
+
+      {/* Modal bon d'enlèvement */}
+      <BonEnlevementModal
+        isOpen={showBonEnl}
+        onClose={() => setShowBonEnl(false)}
+        commande={selected}
+        societe={societe}
+      />
+
+      {/* Modal bon de retour */}
+      <BonRetourModal
+        isOpen={showBonRet}
+        onClose={() => setShowBonRet(false)}
+        commande={selected}
         societe={societe}
       />
     </div>

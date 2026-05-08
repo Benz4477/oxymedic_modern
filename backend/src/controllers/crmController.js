@@ -1,192 +1,161 @@
-import CrmEvent from "../models/CrmEvent.js";
-import CrmTask  from "../models/CrmTask.js";
-import Client   from "../models/Client.js";
+import { Interaction, Tache } from "../models/CRM.js";
 import Commande from "../models/Commande.js";
+import Client   from "../models/Client.js";
 
-const POPULATE_CLIENT = { path: "client", select: "prenom nom tel quartier adresse" };
+const CLIENT_POP = { path: "client", select: "prenom nom tel adresse quartier" };
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-function clientScore(cmds) {
-  const count = cmds.length;
-  const total = cmds.reduce((s, c) => s + (c.montantTTC || 0), 0);
-  if (total > 5000 || count >= 4) return { grade: "A", label: "VIP" };
-  if (total > 2000 || count >= 2) return { grade: "B", label: "Fidèle" };
-  if (total > 500  || count >= 1) return { grade: "C", label: "Actif" };
-  return { grade: "D", label: "Prospect" };
-}
+// ══════════════════════════════════════════
+//  INTERACTIONS
+// ══════════════════════════════════════════
 
-// ── EVENTS ───────────────────────────────────────────────────────────────────
-
-// GET /api/crm/events
-export const getEvents = async (req, res) => {
+export const getAllInteractions = async (req, res) => {
   try {
-    const events = await CrmEvent.find()
-      .populate(POPULATE_CLIENT)
-      .sort({ date: -1 });
-    res.json({ success: true, data: events });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    const filter = {};
+    if (req.query.client) filter.client = req.query.client;
+    if (req.query.type)   filter.type   = req.query.type;
+    const data = await Interaction.find(filter).populate(CLIENT_POP).sort({ date: -1 });
+    res.json({ success: true, data });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// POST /api/crm/events
-export const createEvent = async (req, res) => {
+export const createInteraction = async (req, res) => {
   try {
-    const event = await CrmEvent.create(req.body);
-    const populated = await event.populate(POPULATE_CLIENT);
-    res.status(201).json({ success: true, data: populated });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
-  }
+    const { client, type, titre, note, date } = req.body;
+    if (!client) return res.status(400).json({ success: false, message: "Client requis" });
+    if (!titre)  return res.status(400).json({ success: false, message: "Titre requis" });
+    const doc = await Interaction.create({
+      client, type, titre, note,
+      date: date ? new Date(date) : new Date(),
+      createdBy: req.user?.name || "Admin",
+    });
+    const populated = await Interaction.findById(doc._id).populate(CLIENT_POP);
+    res.status(201).json({ success: true, data: populated, message: "Interaction enregistrée ✅" });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// DELETE /api/crm/events/:id
-export const deleteEvent = async (req, res) => {
+export const deleteInteraction = async (req, res) => {
   try {
-    await CrmEvent.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    await Interaction.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Interaction supprimée" });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// ── TASKS ─────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════
+//  TÂCHES
+// ══════════════════════════════════════════
 
-// GET /api/crm/tasks
-export const getTasks = async (req, res) => {
+export const getAllTaches = async (req, res) => {
   try {
-    const tasks = await CrmTask.find()
-      .populate(POPULATE_CLIENT)
-      .sort({ done: 1, dueDate: 1 });
-    res.json({ success: true, data: tasks });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    const filter = {};
+    if (req.query.done   !== undefined) filter.done   = req.query.done === "true";
+    if (req.query.client) filter.client = req.query.client;
+    const data = await Tache.find(filter).populate(CLIENT_POP).sort({ echeance: 1, createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// POST /api/crm/tasks
-export const createTask = async (req, res) => {
+export const createTache = async (req, res) => {
   try {
-    const task = await CrmTask.create(req.body);
-    const populated = await task.populate(POPULATE_CLIENT);
-    res.status(201).json({ success: true, data: populated });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
-  }
+    const { titre, client, type, priorite, echeance, assignedTo } = req.body;
+    if (!titre) return res.status(400).json({ success: false, message: "Titre requis" });
+    const doc = await Tache.create({
+      titre, client: client || null, type, priorite,
+      echeance: echeance ? new Date(echeance) : null,
+      assignedTo: assignedTo || "Admin",
+      createdBy: req.user?.name || "Admin",
+    });
+    const populated = await Tache.findById(doc._id).populate(CLIENT_POP);
+    res.status(201).json({ success: true, data: populated, message: "Tâche créée ✅" });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// PATCH /api/crm/tasks/:id/toggle
-export const toggleTask = async (req, res) => {
+export const toggleTache = async (req, res) => {
   try {
-    const task = await CrmTask.findById(req.params.id);
-    if (!task) return res.status(404).json({ success: false, message: "Tâche introuvable" });
-    task.done  = !task.done;
-    task.doneAt = task.done ? new Date() : null;
-    await task.save();
-    res.json({ success: true, data: task });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    const tache = await Tache.findById(req.params.id);
+    if (!tache) return res.status(404).json({ success: false, message: "Tâche non trouvée" });
+    tache.done = !tache.done;
+    await tache.save();
+    const populated = await Tache.findById(tache._id).populate(CLIENT_POP);
+    res.json({ success: true, data: populated });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// DELETE /api/crm/tasks/:id
-export const deleteTask = async (req, res) => {
+export const deleteTache = async (req, res) => {
   try {
-    await CrmTask.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    await Tache.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Tâche supprimée" });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// ── SEGMENTS ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════
+//  SEGMENTS — score client calculé
+// ══════════════════════════════════════════
 
-// GET /api/crm/segments
 export const getSegments = async (req, res) => {
   try {
-    const clients  = await Client.find().lean();
-    const commandes = await Commande.find().lean();
+    const clients   = await Client.find();
+    const commandes = await Commande.find();
 
-    const segments = clients.map((c) => {
-      const cmds = commandes.filter(
-        (cmd) => String(cmd.client) === String(c._id)
-      );
-      const score = clientScore(cmds);
-      const lastCmd = cmds.sort(
-        (a, b) => new Date(b.dateFin) - new Date(a.dateFin)
-      )[0];
-      const totalCA = cmds.reduce((s, cmd) => s + (cmd.montantTTC || 0), 0);
+    const scored = clients.map(c => {
+      const cmds  = commandes.filter(x => String(x.client) === String(c._id));
+      const total = cmds.reduce((s, x) => s + (x.montantTTC || 0), 0);
+      const count = cmds.length;
+
+      let grade, label;
+      if (total > 5000 || count >= 4) { grade = "A"; label = "VIP"; }
+      else if (total > 2000 || count >= 2) { grade = "B"; label = "Fidèle"; }
+      else if (total > 500  || count >= 1) { grade = "C"; label = "Actif"; }
+      else { grade = "D"; label = "Prospect"; }
+
       return {
-        _id:       c._id,
-        prenom:    c.prenom,
-        nom:       c.nom,
-        tel:       c.tel,
-        score,
-        cmdsCount: cmds.length,
-        totalCA,
-        lastCmd:   lastCmd ? lastCmd.dateFin : null,
-        daysSince: lastCmd
-          ? Math.floor((Date.now() - new Date(lastCmd.dateFin)) / 86400000)
-          : null,
+        _id:      c._id,
+        prenom:   c.prenom,
+        nom:      c.nom,
+        tel:      c.tel,
+        email:    c.email,
+        adresse:  c.adresse,
+        grade,
+        label,
+        totalCA:  total,
+        nbCmds:   count,
+        dernierCmd: cmds.length ? cmds.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))[0].createdAt : null,
       };
     });
 
-    res.json({ success: true, data: segments });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    // Grouper par grade
+    const segments = {
+      A: scored.filter(c => c.grade === "A"),
+      B: scored.filter(c => c.grade === "B"),
+      C: scored.filter(c => c.grade === "C"),
+      D: scored.filter(c => c.grade === "D"),
+    };
+
+    res.json({ success: true, data: segments, total: clients.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-// ── RENOUVELLEMENTS ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════
+//  STATS GLOBALES CRM
+// ══════════════════════════════════════════
 
-// GET /api/crm/renouvellements?days=30
-export const getRenouvellements = async (req, res) => {
-  try {
-    const days = parseInt(req.query.days) || 30;
-    const now  = new Date();
-    const limit = new Date(now.getTime() + days * 86400000);
-
-    const commandes = await Commande.find({
-      statut:  { $in: ["active", "pending"] },
-      dateFin: { $gte: now, $lte: limit },
-    })
-      .populate({ path: "client", select: "prenom nom tel" })
-      .populate({ path: "equipement", select: "name icon ref" })
-      .sort({ dateFin: 1 });
-
-    res.json({ success: true, data: commandes });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// ── KPIs ──────────────────────────────────────────────────────────────────────
-
-// GET /api/crm/kpis
-export const getKpis = async (req, res) => {
+export const getCrmStats = async (req, res) => {
   try {
     const now      = new Date(); now.setHours(0, 0, 0, 0);
+    const taches   = await Tache.find();
+    const events   = await Interaction.find();
+    const clients  = await Client.find();
+
+    const overdue  = taches.filter(t => !t.done && t.echeance && new Date(t.echeance) < now).length;
+    const pending  = taches.filter(t => !t.done).length;
     const thisMonth = now.getMonth();
-    const thisYear  = now.getFullYear();
-
-    const [tasks, events, clients] = await Promise.all([
-      CrmTask.find().lean(),
-      CrmEvent.find().lean(),
-      Client.find().lean(),
-    ]);
-
-    const overdue     = tasks.filter(t => !t.done && t.dueDate && new Date(t.dueDate) < now).length;
-    const pending     = tasks.filter(t => !t.done).length;
-    const eventsMonth = events.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-    }).length;
+    const eventsMonth = events.filter(e => new Date(e.date).getMonth() === thisMonth).length;
 
     res.json({
       success: true,
-      data: { overdue, pending, eventsMonth, clients: clients.length },
+      data: {
+        overdue, pending, eventsMonth,
+        totalClients: clients.length,
+      }
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };

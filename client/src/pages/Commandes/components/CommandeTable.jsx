@@ -12,6 +12,7 @@ const fmt = (date) => {
 const CommandeTable = ({
   commandes, onReconduire,
   onEdit, onReceipt, onStatusChange, onDelete,
+  onBonEnl, onBonRet,
 }) => {
   if (commandes.length === 0) {
     return (
@@ -93,6 +94,8 @@ const CommandeTable = ({
                     onReceipt={onReceipt}
                     onStatusChange={onStatusChange}
                     onDelete={onDelete}
+                    onBonEnl={onBonEnl}
+                    onBonRet={onBonRet}
                   />
                 </td>
               </tr>

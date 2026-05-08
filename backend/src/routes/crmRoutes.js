@@ -1,27 +1,28 @@
 import express from "express";
-import * as ctrl from "../controllers/crmController.js";
 import { protect } from "../middleware/auth.js";
+import {
+  getAllInteractions, createInteraction, deleteInteraction,
+  getAllTaches, createTache, toggleTache, deleteTache,
+  getSegments, getCrmStats,
+} from "../controllers/crmController.js";
 
 const router = express.Router();
 
-// KPIs
-router.get("/kpis",            protect, ctrl.getKpis);
+// Stats
+router.get("/stats",               protect, getCrmStats);
 
-// Events (interactions)
-router.get("/events",          protect, ctrl.getEvents);
-router.post("/events",         protect, ctrl.createEvent);
-router.delete("/events/:id",   protect, ctrl.deleteEvent);
+// Interactions
+router.get("/interactions",        protect, getAllInteractions);
+router.post("/interactions",       protect, createInteraction);
+router.delete("/interactions/:id", protect, deleteInteraction);
 
-// Tasks
-router.get("/tasks",           protect, ctrl.getTasks);
-router.post("/tasks",          protect, ctrl.createTask);
-router.patch("/tasks/:id/toggle", protect, ctrl.toggleTask);
-router.delete("/tasks/:id",    protect, ctrl.deleteTask);
+// Tâches
+router.get("/taches",              protect, getAllTaches);
+router.post("/taches",             protect, createTache);
+router.put("/taches/:id/toggle",   protect, toggleTache);
+router.delete("/taches/:id",       protect, deleteTache);
 
-// Segments clients
-router.get("/segments",        protect, ctrl.getSegments);
-
-// Renouvellements à venir
-router.get("/renouvellements", protect, ctrl.getRenouvellements);
+// Segments
+router.get("/segments",            protect, getSegments);
 
 export default router;

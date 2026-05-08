@@ -1,7 +1,7 @@
 import React from "react";
 import { RotateCcw, Edit, Receipt, Trash2, MoreVertical } from "lucide-react";
 
-const CommandeActions = ({ commande, onReconduire, onEdit, onReceipt, onStatusChange, onDelete }) => {
+const CommandeActions = ({ commande, onReconduire, onEdit, onReceipt, onStatusChange, onDelete, onBonEnl, onBonRet }) => {
   const [showStatusMenu, setShowStatusMenu] = React.useState(false);
 
   const handleStatusChange = (newStatus) => {
@@ -23,6 +23,22 @@ const CommandeActions = ({ commande, onReconduire, onEdit, onReceipt, onStatusCh
         className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition" title="Reçu">
         <Receipt size={14} />
       </button>
+
+      {/* Bon d'enlèvement — statut pending ou active */}
+      {["pending","active"].includes(commande.statut) && (
+        <button onClick={() => onBonEnl(commande)} title="Bon d'enlèvement"
+          className="p-1.5 rounded-lg border border-blue-100 text-blue-500 hover:bg-blue-50 transition">
+          📦
+        </button>
+      )}
+
+      {/* Bon de retour — statut active ou ended */}
+      {["active","ended"].includes(commande.statut) && (
+        <button onClick={() => onBonRet(commande)} title="Bon de retour"
+          className="p-1.5 rounded-lg border border-orange-100 text-orange-500 hover:bg-orange-50 transition">
+          🔄
+        </button>
+      )}
 
       {/* Menu statut */}
       <div className="relative">

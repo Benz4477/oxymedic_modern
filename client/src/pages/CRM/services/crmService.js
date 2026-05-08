@@ -1,52 +1,48 @@
 import api from "../../../api";
 
 const crmService = {
-  // KPIs
-  getKpis: async () => {
-    const { data } = await api.get("/crm/kpis");
-    return data.data;
+  // Stats
+  getStats: async () => {
+    const res = await api.get("/crm/stats");
+    return res.data.data;
   },
 
-  // Events
-  getEvents: async () => {
-    const { data } = await api.get("/crm/events");
-    return data.data;
+  // Interactions
+  getInteractions: async (params = {}) => {
+    const res = await api.get("/crm/interactions", { params });
+    return res.data.data;
   },
-  createEvent: async (payload) => {
-    const { data } = await api.post("/crm/events", payload);
-    return data.data;
+  createInteraction: async (data) => {
+    const res = await api.post("/crm/interactions", data);
+    return res.data.data;
   },
-  deleteEvent: async (id) => {
-    await api.delete(`/crm/events/${id}`);
+  deleteInteraction: async (id) => {
+    const res = await api.delete(`/crm/interactions/${id}`);
+    return res.data;
   },
 
-  // Tasks
-  getTasks: async () => {
-    const { data } = await api.get("/crm/tasks");
-    return data.data;
+  // Tâches
+  getTaches: async (params = {}) => {
+    const res = await api.get("/crm/taches", { params });
+    return res.data.data;
   },
-  createTask: async (payload) => {
-    const { data } = await api.post("/crm/tasks", payload);
-    return data.data;
+  createTache: async (data) => {
+    const res = await api.post("/crm/taches", data);
+    return res.data.data;
   },
-  toggleTask: async (id) => {
-    const { data } = await api.patch(`/crm/tasks/${id}/toggle`);
-    return data.data;
+  toggleTache: async (id) => {
+    const res = await api.put(`/crm/taches/${id}/toggle`);
+    return res.data.data;
   },
-  deleteTask: async (id) => {
-    await api.delete(`/crm/tasks/${id}`);
+  deleteTache: async (id) => {
+    const res = await api.delete(`/crm/taches/${id}`);
+    return res.data;
   },
 
   // Segments
   getSegments: async () => {
-    const { data } = await api.get("/crm/segments");
-    return data.data;
-  },
-
-  // Renouvellements
-  getRenouvellements: async (days = 30) => {
-    const { data } = await api.get(`/crm/renouvellements?days=${days}`);
-    return data.data;
+    const res = await api.get("/crm/segments");
+    return res.data;
   },
 };
 

@@ -1,48 +1,27 @@
-// src/pages/CRM/components/CRMStats.jsx
 import React from "react";
-import { Users, CheckCircle, Star, Heart } from "lucide-react";
+import { AlertTriangle, CheckCircle, MessageSquare, Users } from "lucide-react";
 
-const CRMStats = ({ total, actifs, premium, scoreMoyen }) => {
+const CrmStats = ({ stats }) => {
+  const items = [
+    { icon: AlertTriangle, iconBg: "bg-red-50", iconColor: "text-red-500", label: "Tâches en retard",    value: stats.overdue       || 0, color: "border-l-red-400" },
+    { icon: CheckCircle,   iconBg: "bg-amber-50", iconColor: "text-amber-500", label: "Tâches en attente", value: stats.pending       || 0, color: "border-l-amber-400" },
+    { icon: MessageSquare, iconBg: "bg-blue-50", iconColor: "text-blue-600",  label: "Interactions ce mois", value: stats.eventsMonth  || 0, color: "border-l-blue-400" },
+    { icon: Users,         iconBg: "bg-emerald-50", iconColor: "text-emerald-600", label: "Total clients",  value: stats.totalClients || 0, color: "border-l-emerald-400" },
+  ];
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-          <Users size={22} className="text-blue-600" />
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {items.map((item) => (
+        <div key={item.label} className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-5 border-l-4 ${item.color}`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${item.iconBg}`}>
+            <item.icon size={17} className={item.iconColor} />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900">{item.value}</div>
+          <div className="text-xs text-slate-400 mt-1">{item.label}</div>
         </div>
-        <div>
-          <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">{total}</div>
-          <div className="text-xs text-slate-400 mt-1 font-medium">Total clients</div>
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
-          <CheckCircle size={22} className="text-emerald-600" />
-        </div>
-        <div>
-          <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">{actifs}</div>
-          <div className="text-xs text-slate-400 mt-1 font-medium">Clients actifs</div>
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-          <Star size={22} className="text-amber-600" />
-        </div>
-        <div>
-          <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">{premium}</div>
-          <div className="text-xs text-slate-400 mt-1 font-medium">Clients Premium</div>
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
-          <Heart size={22} className="text-purple-600" />
-        </div>
-        <div>
-          <div className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">{scoreMoyen}</div>
-          <div className="text-xs text-slate-400 mt-1 font-medium">Score moyen</div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 };
 
-export default CRMStats;
+export default CrmStats;
