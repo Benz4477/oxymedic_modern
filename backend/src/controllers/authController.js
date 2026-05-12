@@ -41,7 +41,7 @@ const login = async (req, res) => {
 
     // Générer un token JWT simple
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { id: user._id, username: user.username, role: user.role },
       process.env.JWT_SECRET || "oxymedic-secret-key",
       { expiresIn: "7d" },
     );
@@ -49,13 +49,14 @@ const login = async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id,
+      data: {
+        _id: user._id,
         username: user.username,
         role: user.role,
         name: user.name,
         status: user.status,
         lastLogin: user.lastLogin,
+        permissions: user.permissions,
       },
       message: "Connexion réussie",
     });

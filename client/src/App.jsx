@@ -16,33 +16,18 @@ import "react-toastify/dist/ReactToastify.css";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Clients from "./pages/Clients/Clients";
 import CRM from "./pages/CRM/CRM";
-import Pipeline from "./pages/Pipeline";
+import Pipeline from "./pages/Pipeline/Pipeline";
 import Devis from "./pages/Devis/Devis";
-import Fidelite from "./pages/Fidelite";
-import Agenda from "./pages/Agenda";
-import Disponibilite from "./pages/Disponibilite";
-import Reservations from "./pages/Reservations";
-import Contrats from "./pages/Contrats";
-import Cautions from "./pages/Cautions";
-import Livraisons from "./pages/Livraisons";
-import Livreurs from "./pages/Livreurs";
-import Stock from "./pages/Stock";
+import Contrats from "./pages/Contrats/Contrats";
+import Stock from "./pages/Stock/Stock";
 import Serials from "./pages/Serials/Serials";
-import Consommables from "./pages/Consommables";
 import Facturation from "./pages/Facturation/Facturation";
 import Paiements from "./pages/Paiements/Paiements";
-import Catalogue from "./pages/Produits";
-import ProdList from "./pages/Parametres";
-import Scanner from "./pages/Scanner";
-import Analytics from "./pages/Analytics";
-import SAV from "./pages/SAV";
-import Maintenance from "./pages/Maintenance";
-import Apparence from "./pages/Apparence";
-import Access from "./pages/DroitsAcces";
-import Users from "./pages/Users";
+import Utilisateurs from "./pages/Utilisateurs/Utilisateurs";
 import Categories from "./pages/Categories/Categories";
 import Commandes from "./pages/Commandes/Commandes";
 import Societe from "./pages/societe/Societe";
+import NotFound from "./pages/NotFound/NotFound";
 
 // Constante pour les routes de l'application (sous /app)
 const appRoutes = [
@@ -53,29 +38,13 @@ const appRoutes = [
   { path: "pipeline", element: <Pipeline /> },
   { path: "devis", element: <Devis /> },
   { path: "commandes", element: <Commandes /> },
-  { path: "fidelite", element: <Fidelite /> },
-  { path: "agenda", element: <Agenda /> },
-  { path: "disponibilite", element: <Disponibilite /> },
-  { path: "reservations", element: <Reservations /> },
   { path: "contrats", element: <Contrats /> },
-  { path: "cautions", element: <Cautions /> },
-  { path: "livraisons", element: <Livraisons /> },
-  { path: "livreurs", element: <Livreurs /> },
   { path: "stock", element: <Stock /> },
   { path: "serials", element: <Serials /> },
-  { path: "consommables", element: <Consommables /> },
   { path: "facturation", element: <Facturation /> },
   { path: "paiements", element: <Paiements /> },
-  { path: "catalogue", element: <Catalogue /> },
-  { path: "prodlist", element: <ProdList /> },
-  { path: "categories", element: <Categories /> },
-  { path: "scanner", element: <Scanner /> },
-  { path: "analytics", element: <Analytics /> },
-  { path: "sav", element: <SAV /> },
-  { path: "maintenance", element: <Maintenance /> },
-  { path: "apparence", element: <Apparence /> },
-  { path: "access", element: <Access /> },
-  { path: "users", element: <Users /> },
+  { path: "categories", element: <Categories /> }, 
+  { path: "utilisateurs", element: <Utilisateurs /> },
   { path: "societe", element: <Societe /> },
 ];
 
@@ -100,8 +69,8 @@ function App() {
           ))}
         </Route>
 
-        {/* Route 404 (optionnel) */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Route 404 personnalisée */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <ToastContainer
         position="top-right"

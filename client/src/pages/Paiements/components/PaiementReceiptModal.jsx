@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { X, Printer, Check, Clock, Phone, MapPin, CreditCard, Calendar } from "lucide-react";
+import { X, Printer, Check, Clock, Phone, MapPin, CreditCard, Calendar, Settings } from "lucide-react";
 
 const fmt     = (n) => (n || 0).toLocaleString("fr-FR");
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
@@ -22,6 +22,16 @@ const TYPE_LABELS = {
 const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
   const printRef = useRef();
   const [logoError, setLogoError] = useState(false);
+  const [printerMode, setPrinterMode] = useState(() => {
+    const saved = localStorage.getItem('printerMode');
+    return saved || 'standard';
+  });
+
+  const handlePrinterModeChange = () => {
+    const newMode = printerMode === 'thermal' ? 'standard' : 'thermal';
+    setPrinterMode(newMode);
+    localStorage.setItem('printerMode', newMode);
+  };
 
   if (!isOpen || !paiement) return null;
 
@@ -68,6 +78,14 @@ const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
   };
 
   const handlePrint = () => {
+    if (printerMode === 'thermal') {
+      printThermalReceipt();
+    } else {
+      printStandardReceipt();
+    }
+  };
+
+  const printStandardReceipt = () => {
     const content = printRef.current.innerHTML;
     const win = window.open("", "_blank", "width=800,height=900");
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${paiement.reference}</title>
@@ -76,6 +94,166 @@ const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
       </style></head><body>${content}</body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); win.close(); }, 400);
+  };
+
+  const printThermalReceipt = () => {
+    // Créer une fenêtre avec des dimensions optimales pour les tickets
+    const win = window.open("", "_blank", "width=320,height=600,scrollbars=yes");
+    
+    const thermalContent = generateThermalReceipt();
+    
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${paiement.reference}</title>
+      <style>
+        @media print {
+          @page {
+            size: 80mm 200mm;
+            margin: 2mm;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            width: 76mm;
+            font-family: 'Courier New', monospace;
+            font-size: 9pt;
+            line-height: 1.1;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+        body {
+          font-family: 'Courier New', monospace;
+          background: white;
+          color: black;
+          width: 280px;
+          max-width: 280px;
+          margin: 0 auto;
+          padding: 5px;
+          font-size: 10px;
+          line-height: 1.1;
+        }
+        .header { text-align: center; margin-bottom: 10px; }
+        .logo-img { max-width: 60px; max-height: 30px; margin-bottom: 5px; }
+        .company-name { font-size: 14px; font-weight: bold; margin-bottom: 3px; }
+        .slogan { font-size: 9px; margin-bottom: 5px; }
+        .divider { border-top: 1px solid black; margin: 8px 0; height: 1px; }
+        .info-row { display: flex; justify-content: space-between; margin: 2px 0; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .large { font-size: 12px; }
+        .total { font-size: 14px; font-weight: bold; margin: 8px 0; }
+        .footer { font-size: 8px; text-align: center; margin-top: 10px; }
+      </style></head><body>
+        <div class="no-print" style="padding: 20px; text-align: center;">
+          <h3>Aperçu du ticket d'impression</h3>
+          <p>Utilisez Ctrl+P ou Cmd+P pour imprimer</p>
+          <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Imprimer</button>
+          <hr style="margin: 20px 0;">
+        </div>
+        ${thermalContent}
+      </body></html>`);
+    win.document.close();
+  };
+
+  const generateThermalReceipt = () => {
+    const soc = societe;
+    const nomSoc = soc.nom || "OXYMEDIC";
+    const slogan = soc.slogan || "Le confort médical à domicile";
+    const logoUrl = soc.logo || "/Logo1.png";
+    
+    const client = paiement.client || {};
+    const clientNom = typeof client === "object" ? `${client.prenom || ""} ${client.nom || ""}`.trim() : "—";
+    const clientTel = client.tel || "";
+    
+    const receiptNum = `RCP-${paiement.reference}`;
+    const now = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const isPaid = paiement.statut === "paid";
+    
+    return `
+      <div class="header">
+        <img src="${logoUrl}" alt="logo" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+        <div class="company-name" style="display:none;">${nomSoc.toUpperCase()}</div>
+        <div class="slogan">${slogan}</div>
+        ${soc.tel ? `<div>${soc.tel}</div>` : ''}
+        ${soc.adresse ? `<div style="font-size:9px;">${soc.adresse}</div>` : ''}
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="center bold large">
+        RECU DE PAIEMENT
+      </div>
+      
+      <div class="info-row">
+        <span>N°:</span>
+        <span class="bold">${receiptNum}</span>
+      </div>
+      
+      <div class="info-row">
+        <span>Date:</span>
+        <span>${now} ${time}</span>
+      </div>
+      
+      <div class="info-row">
+        <span>Mode:</span>
+        <span>${MODE_LABELS[paiement.modePaiement] || paiement.modePaiement}</span>
+      </div>
+      
+      <div class="info-row">
+        <span>Type:</span>
+        <span>${TYPE_LABELS[paiement.type] || paiement.type}</span>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="info-row">
+        <span>Client:</span>
+        <span class="bold">${clientNom}</span>
+      </div>
+      
+      ${clientTel ? `
+      <div class="info-row">
+        <span>Tel:</span>
+        <span>${clientTel}</span>
+      </div>
+      ` : ''}
+      
+      <div class="divider"></div>
+      
+      <div class="info-row">
+        <span>Montant:</span>
+        <span class="bold">${fmt(paiement.montant)} MAD</span>
+      </div>
+      
+      <div class="total right">
+        TOTAL: ${fmt(paiement.montant)} MAD
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="center">
+        <div style="margin-bottom:3px;">${isPaid ? 'PAYE' : 'ATTENTE'}</div>
+        ${paiement.note ? `<div style="font-size:9px;font-style:italic;">"${paiement.note}"</div>` : ''}
+      </div>
+      
+      ${paiement.banque || paiement.referenceBancaire ? `
+      <div class="divider"></div>
+      ${paiement.banque ? `<div class="info-row"><span>Banque:</span><span>${paiement.banque}</span></div>` : ''}
+      ${paiement.referenceBancaire ? `<div class="info-row"><span>Ref:</span><span>${paiement.referenceBancaire}</span></div>` : ''}
+      ` : ''}
+      
+      <div class="divider"></div>
+      
+      <div class="footer">
+        <div>Merci pour votre confiance</div>
+        ${soc.website ? `<div>${soc.website}</div>` : ''}
+        ${soc.email ? `<div>${soc.email}</div>` : ''}
+        ${soc.rc ? `<div>RC: ${soc.rc}</div>` : ''}
+        ${soc.ice ? `<div>ICE: ${soc.ice}</div>` : ''}
+      </div>
+    `;
   };
 
   const s = {
@@ -95,6 +273,14 @@ const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
           <div className="flex items-center gap-2"></div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={handlePrinterModeChange}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-600 text-white text-xs font-semibold rounded-lg hover:bg-slate-700 transition"
+              title={printerMode === 'thermal' ? 'Basculer vers format A4' : 'Basculer vers format ticket caisse'}
+            >
+              <Settings size={13} />
+              {printerMode === 'thermal' ? 'Ticket' : 'A4'}
+            </button>
             <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition">
               <Printer size={13} /> Imprimer
             </button>
@@ -105,7 +291,8 @@ const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
         </div>
 
         <div className="overflow-y-auto flex-1 p-5">
-          <div ref={printRef} style={{ fontFamily: "'Segoe UI',Arial,sans-serif", maxWidth: 640, margin: "0 auto", color: "#111" }}>
+          {printerMode === 'standard' ? (
+            <div ref={printRef} style={{ fontFamily: "'Segoe UI',Arial,sans-serif", maxWidth: 640, margin: "0 auto", color: "#111" }}>
 
             {/* ── En-tête ── */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -231,8 +418,106 @@ const PaiementReceiptModal = ({ isOpen, onClose, paiement, societe = {} }) => {
                 </div>
               )}
             </div>
-
           </div>
+          ) : (
+            <div style={{ fontFamily: "'Courier New',monospace", maxWidth: 280, margin: "0 auto", color: "#000", padding: "5px" }}>
+              <div style={{ textAlign: "center", marginBottom: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: "5px" }}>
+                  <img src={logo} alt="logo" style={{ maxWidth: "60px", maxHeight: "30px" }} onError={(e) => { e.target.style.display='none'; e.target.nextElementSibling.style.display='block'; }} />
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "3px", display: "none", textAlign: "center" }}>{nomSoc.toUpperCase()}</div>
+                <div style={{ fontSize: "9px", marginBottom: "5px" }}>{slogan}</div>
+                {soc.tel && <div>{soc.tel}</div>}
+                {soc.adresse && <div style={{ fontSize: "9px" }}>{soc.adresse}</div>}
+              </div>
+              
+              <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+              
+              <div style={{ textAlign: "center", fontWeight: "bold", fontSize: "12px", marginBottom: "8px" }}>
+                RECU DE PAIEMENT
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>N°:</span>
+                <span style={{ fontWeight: "bold" }}>{receiptNum}</span>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>Date:</span>
+                <span>{now}</span>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>Mode:</span>
+                <span>{MODE_LABELS[paiement.modePaiement] || paiement.modePaiement}</span>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>Type:</span>
+                <span>{TYPE_LABELS[paiement.type] || paiement.type}</span>
+              </div>
+              
+              <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>Client:</span>
+                <span style={{ fontWeight: "bold" }}>{clientNom}</span>
+              </div>
+              
+              {clientTel && (
+                <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                  <span>Tel:</span>
+                  <span>{clientTel}</span>
+                </div>
+              )}
+              
+              <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                <span>Montant:</span>
+                <span style={{ fontWeight: "bold" }}>{fmt(paiement.montant)} MAD</span>
+              </div>
+              
+              <div style={{ fontSize: "14px", fontWeight: "bold", margin: "8px 0", textAlign: "right" }}>
+                TOTAL: {fmt(paiement.montant)} MAD
+              </div>
+              
+              <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+              
+              <div style={{ textAlign: "center", marginBottom: "8px" }}>
+                <div style={{ marginBottom: "3px" }}>{isPaid ? 'PAYE' : 'ATTENTE'}</div>
+                {paiement.note && <div style={{ fontSize: "9px", fontStyle: "italic" }}>"{paiement.note}"</div>}
+              </div>
+              
+              {(paiement.banque || paiement.referenceBancaire) && (
+                <>
+                  <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+                  {paiement.banque && (
+                    <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                      <span>Banque:</span>
+                      <span>{paiement.banque}</span>
+                    </div>
+                  )}
+                  {paiement.referenceBancaire && (
+                    <div style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+                      <span>Ref:</span>
+                      <span>{paiement.referenceBancaire}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <div style={{ borderTop: "1px solid #000", margin: "8px 0", height: "1px" }}></div>
+              
+              <div style={{ fontSize: "8px", textAlign: "center", marginTop: "10px" }}>
+                <div>Merci pour votre confiance</div>
+                {soc.website && <div>{soc.website}</div>}
+                {soc.email && <div>{soc.email}</div>}
+                {soc.rc && <div>RC: {soc.rc}</div>}
+                {soc.ice && <div>ICE: {soc.ice}</div>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

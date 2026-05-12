@@ -1,11 +1,12 @@
 import React from "react";
 import { Menu, Bell, LogOut, Search } from "lucide-react";
-import { menuItems } from "../../config/menuItems";
+import { getMenuForUser } from "../../config/menuItems";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const TopBar = ({ onMenuToggle, onSearch, user }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const menuItems = getMenuForUser(user);
 
   const getCurrentTitle = () => {
     const currentPath = location.pathname.replace("/app/", "");

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { login } from "../services/authService";
-import { getUserById } from "../services/userService";
+import userService from "../services/userService";
 
 const LoginScreen = () => {
   const { userId } = useParams();
@@ -18,7 +18,7 @@ const LoginScreen = () => {
   // Charger l'utilisateur sélectionné
   useEffect(() => {
     if (userId) {
-      getUserById(userId).then(setUser).catch(console.error);
+      userService.getById(userId).then(setUser).catch(console.error);
     }
   }, [userId]);
 
@@ -34,7 +34,7 @@ const LoginScreen = () => {
       const response = await login(user.username, password);
       // Stocker le token et les informations utilisateur (contexte ou localStorage)
       localStorage.setItem("token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem("user", JSON.stringify(response.data));
       // Rediriger vers l'application (tableau de bord)
       navigate("/dashboard");
     } catch (err) {

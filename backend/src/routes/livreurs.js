@@ -1,12 +1,12 @@
 import express from 'express'
-import { protect, authorizeModule } from '../middleware/auth.js'
+import { protect, authorize } from '../middleware/auth.js'
 
 const router = express.Router()
 
 // @route   GET /api/livreurs
 // @desc    Récupérer tous les livreurs
 // @access  Private
-router.get('/', protect, authorizeModule('livreurs'), async (req, res) => {
+router.get('/', protect, authorize('admin', 'livreur'), async (req, res) => {
   try {
     // Simulation de données pour le test
     const livreurs = [

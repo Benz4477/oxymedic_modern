@@ -5,15 +5,15 @@ import User from "../models/User.js";
 
 dotenv.config();
 
-const seedUsers = async () => {
+const cleanAndSeed = async () => {
   try {
     await connectDB();
 
-    // Supprimer les utilisateurs existants (optionnel)
+    // Supprimer tous les utilisateurs
     await User.deleteMany({});
-    console.log("🗑️ Utilisateurs existants supprimés");
+    console.log("🗑️ Base de données utilisateurs nettoyée");
 
-    // Hasher les mots de passe manuellement pour insertMany
+    // Hasher les mots de passe
     const password = await bcrypt.hash("12345678", 12);
 
     // Créer les utilisateurs par défaut
@@ -64,17 +64,17 @@ const seedUsers = async () => {
 
     await User.insertMany(users);
     console.log("✅ 5 utilisateurs créés avec succès");
-    console.log("   - superadmin / 12345678 (Super Admin)");
-    console.log("   - admin / 12345678 (Administrateur)");
-    console.log("   - employe / 12345678 (Employé)");
-    console.log("   - livreur / 12345678 (Livreur)");
-    console.log("   - caissier / 12345678 (Caissier)");
+    console.log("   - superadmin / 12345678 (🛡️ Super Admin)");
+    console.log("   - admin / 12345678 (👑 Administrateur)");
+    console.log("   - employe / 12345678 (👤 Employé)");
+    console.log("   - livreur / 12345678 (🚚 Livreur)");
+    console.log("   - caissier / 12345678 (💰 Caissier)");
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Erreur lors du seeding:", error);
+    console.error("❌ Erreur:", error);
     process.exit(1);
   }
 };
 
-seedUsers();
+cleanAndSeed();

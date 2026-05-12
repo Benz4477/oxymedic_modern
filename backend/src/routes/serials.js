@@ -1,12 +1,12 @@
 import express from 'express'
-import { protect, authorizeModule } from '../middleware/auth.js'
+import { protect, authorize } from '../middleware/auth.js'
 
 const router = express.Router()
 
 // @route   GET /api/serials
 // @desc    Récupérer tous les numéros de série
 // @access  Private
-router.get('/', protect, authorizeModule('serials'), async (req, res) => {
+router.get('/', protect, authorize('admin', 'commercial', 'technicien'), async (req, res) => {
   try {
     // Simulation de données pour le test
     const serials = [

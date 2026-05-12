@@ -30,6 +30,9 @@ import statsRoutes       from "./routes/stats.js";
 import societeRoutes     from "./routes/societe.js";
 import paiementRoutes    from "./routes/paiements.js";
 import crmRoutes         from "./routes/crmRoutes.js";
+import usersRoutes       from "./routes/users.js";
+import contratRoutes     from "./routes/contratRoutes.js";
+import pipelineRoutes    from "./routes/pipelineRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -113,6 +116,10 @@ app.use("/api/stats",        statsRoutes);
 app.use("/api/societe",      societeRoutes);
 app.use("/api/paiements", paiementRoutes);
 app.use("/api/crm",        crmRoutes);
+app.use("/api/contrats",   contratRoutes);
+app.use("/api/pipeline",   pipelineRoutes);
+
+
 
 // ── Health check ───────────────────────────────────────────
 app.get("/api/health", (req, res) => {

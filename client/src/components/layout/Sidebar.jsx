@@ -1,9 +1,10 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { menuItems } from "../../config/menuItems";
+import { getMenuForUser } from "../../config/menuItems";
 
 const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
   const navigate = useNavigate();
+  const menuItems = getMenuForUser(user);
 
   const handleLogout = () => {
     if (onLogout) onLogout();
