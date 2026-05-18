@@ -13,9 +13,9 @@ const login = async (req, res) => {
       });
     }
 
-    // Trouver l'utilisateur avec status='active' et peupler le magasin
+    // Trouver l'utilisateur avec status='active' (par email ou username) et peupler le magasin
     const user = await User.findOne({
-      email: email,
+      $or: [{ email: email }, { username: email }],
       status: "active",
     }).populate("magasin").select("+password");
 

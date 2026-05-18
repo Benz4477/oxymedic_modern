@@ -68,14 +68,14 @@ const LoginScreen = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Adresse Email</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email ou Identifiant</label>
             <input
-              type="email"
-              placeholder="prenom.nom@oxymedic.fr"
+              type="text"
+              placeholder="prenom.nom@oxymedic.fr ou identifiant"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-black focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all outline-none placeholder:text-slate-200"
-              autoComplete="email"
+              autoComplete="username"
               autoFocus
             />
           </div>
