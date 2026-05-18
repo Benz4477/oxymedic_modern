@@ -7,7 +7,6 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import UserSelection from "./components/UserSelection";
 import LoginScreen from "./components/LoginScreen";
 import AppLayout from "./components/AppLayout";
 import { ToastContainer } from "react-toastify";
@@ -90,8 +89,7 @@ function App() {
     <Router>
       <Routes>
         {/* Routes d'authentification */}
-        <Route path="/" element={<UserSelection />} />
-        <Route path="/login/:userId" element={<LoginScreen />} />
+        <Route path="/" element={<LoginScreen />} />
 
         {/* Route d'accès non autorisé (403) */}
         <Route path="/unauthorized" element={<Unauthorized />} />

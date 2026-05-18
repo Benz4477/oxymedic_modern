@@ -6,31 +6,24 @@ import userService from "../services/userService";
 import { useAuthStore } from "../store/authStore";
 
 const LoginScreen = () => {
-  const { userId } = useParams();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
+  const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (userId) {
-      userService.getById(userId).then(setUser).catch(console.error);
-    }
-  }, [userId]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user) {
-      setError("❌ Aucun utilisateur sélectionné");
+    if (!username.trim() || !password) {
+      setError("❌ Veuillez remplir tous les champs");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const response = await login(user.username, password);
+      const response = await login(username, password);
       
       // Utiliser le store d'authentification Zustand
       useAuthStore.getState().login(response.data, response.token);
@@ -43,16 +36,6 @@ const LoginScreen = () => {
     }
   };
 
-  if (!user && userId) {
-    return (
-      <div className="fixed inset-0 bg-[#F8FAFC] flex items-center justify-center">
-        <div className="relative">
-          <div className="w-12 h-12 border-4 border-emerald-600/20 rounded-full" />
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-[#F8FAFC] flex items-center justify-center p-4">
@@ -63,10 +46,6 @@ const LoginScreen = () => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-emerald-500/5 max-w-[400px] w-full p-8 relative">
-        <button onClick={() => navigate("/")} className="absolute left-6 top-6 p-2 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 transition-all">
-          <ChevronLeft size={20} />
-        </button>
-
         <div className="flex flex-col items-center justify-center mb-0">
           <div>
             <img src="/Logo1.png" alt="OXYMEDIC" className="w-28 h-28 object-contain" />
@@ -76,7 +55,7 @@ const LoginScreen = () => {
         <div className="text-center mb-6">
           <h2 className="text-2xl font-black text-slate-900 mb-2">Bon retour</h2>
           <p className="text-xs font-bold text-slate-400">
-            {user ? `Veuillez entrer le code d'accès pour ${user.name}` : "Connectez-vous à votre espace"}
+            Connectez-vous à votre espace
           </p>
         </div>
 
@@ -90,16 +69,15 @@ const LoginScreen = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Utilisateur</label>
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xs font-black text-emerald-600">
-                {user?.name?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="text-xs font-black text-slate-800 leading-none">{user?.username}</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Identité vérifiée</div>
-              </div>
-              <ShieldCheck size={16} className="text-emerald-500" />
-            </div>
+            <input
+              type="text"
+              placeholder="Nom d'utilisateur"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-black focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all outline-none placeholder:text-slate-200"
+              autoComplete="username"
+              autoFocus
+            />
           </div>
 
           <div className="space-y-2 relative">
