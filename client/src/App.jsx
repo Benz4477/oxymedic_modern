@@ -5,12 +5,29 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import UserSelection from "./components/UserSelection";
 import LoginScreen from "./components/LoginScreen";
 import AppLayout from "./components/AppLayout";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useAuthStore } from "./store/authStore";
+import RoleGuard from "./components/RoleGuard";
+import Unauthorized from "./pages/Unauthorized/Unauthorized";
+
+// Composant de protection des routes
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated } = useAuthStore();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    // Rediriger vers la page de sélection d'utilisateur avec l'URL de retour
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
 
 // Import des pages (modules)
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -27,25 +44,45 @@ import Utilisateurs from "./pages/Utilisateurs/Utilisateurs";
 import Categories from "./pages/Categories/Categories";
 import Commandes from "./pages/Commandes/Commandes";
 import Societe from "./pages/societe/Societe";
+import Cautions from "./pages/Cautions/Cautions";
 import NotFound from "./pages/NotFound/NotFound";
+import Livreurs from "./pages/Livreurs/Livreurs";
+import Livraisons from "./pages/Livraisons/Livraisons";
+import Consommables from "./pages/Consommables/Consommables";
+import Maintenance from "./pages/Maintenance/Maintenance";
+import Sav from "./pages/Sav/Sav";
+import Fidelite from "./pages/Fidelite/Fidelite";
+import Magasins from "./pages/Magasins/Magasins";
+import Reservations from "./pages/Reservations/Reservations";
+import Transferts from "./pages/Transferts/Transferts";
 
-// Constante pour les routes de l'application (sous /app)
+// Constante pour les routes de l'application (sous /app) avec permissions associées
 const appRoutes = [
-  { path: "", element: <Dashboard /> }, // index
-  { path: "dashboard", element: <Dashboard /> },
-  { path: "clients", element: <Clients /> },
-  { path: "crm", element: <CRM /> },
-  { path: "pipeline", element: <Pipeline /> },
-  { path: "devis", element: <Devis /> },
-  { path: "commandes", element: <Commandes /> },
-  { path: "contrats", element: <Contrats /> },
-  { path: "stock", element: <Stock /> },
-  { path: "serials", element: <Serials /> },
-  { path: "facturation", element: <Facturation /> },
-  { path: "paiements", element: <Paiements /> },
-  { path: "categories", element: <Categories /> }, 
-  { path: "utilisateurs", element: <Utilisateurs /> },
-  { path: "societe", element: <Societe /> },
+  { path: "", element: <Dashboard />, permission: "dashboard" },
+  { path: "dashboard", element: <Dashboard />, permission: "dashboard" },
+  { path: "clients", element: <Clients />, permission: "clients" },
+  { path: "crm", element: <CRM />, permission: "crm" },
+  { path: "pipeline", element: <Pipeline />, permission: "pipeline" },
+  { path: "devis", element: <Devis />, permission: "devis" },
+  { path: "commandes", element: <Commandes />, permission: "commandes" },
+  { path: "contrats", element: <Contrats />, permission: "contrats" },
+  { path: "stock", element: <Stock />, permission: "stock" },
+  { path: "serials", element: <Serials />, permission: "serials" },
+  { path: "facturation", element: <Facturation />, permission: "facturation" },
+  { path: "paiements", element: <Paiements />, permission: "paiements" },
+  { path: "categories", element: <Categories />, permission: "categories" },
+  { path: "utilisateurs", element: <Utilisateurs />, permission: "utilisateurs" },
+  { path: "societe", element: <Societe />, permission: "societe" },
+  { path: "magasins", element: <Magasins />, permission: "utilisateurs" },
+  { path: "cautions", element: <Cautions />, permission: "cautions" },
+  { path: "livreurs", element: <Livreurs />, permission: "livreurs" },
+  { path: "livraisons", element: <Livraisons />, permission: "livraisons" },
+  { path: "consommables", element: <Consommables />, permission: "stock" },
+  { path: "maintenance", element: <Maintenance />, permission: "maintenance" },
+  { path: "sav", element: <Sav />, permission: "maintenance" },
+  { path: "fidelite", element: <Fidelite />, permission: "fidelite" },
+  { path: "reservations", element: <Reservations />, permission: "reservations" },
+  { path: "transferts", element: <Transferts />, permission: "stock" },
 ];
 
 function App() {
@@ -56,16 +93,31 @@ function App() {
         <Route path="/" element={<UserSelection />} />
         <Route path="/login/:userId" element={<LoginScreen />} />
 
+        {/* Route d'accès non autorisé (403) */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
+
         {/* Redirection de l'ancien /dashboard vers /app */}
         <Route
           path="/dashboard"
           element={<Navigate to="/app/dashboard" replace />}
         />
 
-        {/* Routes principales avec layout */}
-        <Route path="/app" element={<AppLayout />}>
+        {/* Routes principales avec layout et protection de session */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
           {appRoutes.map((route, idx) => (
-            <Route key={idx} path={route.path} element={route.element} />
+            <Route
+              key={idx}
+              element={<RoleGuard requiredPermission={route.permission} />}
+            >
+              <Route path={route.path} element={route.element} />
+            </Route>
           ))}
         </Route>
 

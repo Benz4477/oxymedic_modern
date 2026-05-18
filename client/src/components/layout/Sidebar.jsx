@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { getMenuForUser } from "../../config/menuItems";
+import { useAuthStore } from "../../store/authStore";
 
 const Sidebar = ({ isOpen, onClose, user, activeMagasin, onLogout }) => {
   const navigate = useNavigate();
@@ -9,10 +10,9 @@ const Sidebar = ({ isOpen, onClose, user, activeMagasin, onLogout }) => {
   const handleLogout = () => {
     if (onLogout) onLogout();
     else {
-      // comportement par défaut
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      navigate("/login");
+      // Utiliser le store d'authentification Zustand
+      useAuthStore.getState().logout();
+      navigate("/");
     }
   };
 

@@ -4,6 +4,7 @@ import { getMenuForUser } from "../../config/menuItems";
 import { useLocation, useNavigate } from "react-router-dom";
 import notificationService from "../../services/notificationService";
 import magasinService from "../../services/magasinService";
+import { useAuthStore } from "../../store/authStore";
 
 const TopBar = ({ onMenuToggle, onSearch, user }) => {
   const location = useLocation();
@@ -104,10 +105,9 @@ const TopBar = ({ onMenuToggle, onSearch, user }) => {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("activeMagasinId");
-    navigate("/login");
+    // Utiliser le store d'authentification Zustand
+    useAuthStore.getState().logout();
+    navigate("/");
   };
 
   return (
