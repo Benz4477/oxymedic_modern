@@ -1,4 +1,6 @@
+// src/pages/Clients/Clients.jsx
 import React, { useState, useEffect, useCallback } from "react";
+import { toast } from "react-toastify";
 import ClientHeader from "./components/ClientHeader";
 import ClientFilters from "./components/ClientFilters";
 import ClientTable from "./components/ClientTable";
@@ -6,13 +8,27 @@ import ClientModal from "./components/ClientModal";
 import ClientProfile from "./ClientProfile";
 import clientService from "./services/clientService";
 import commandeService from "../../services/commandeService";
-import { toast } from "react-toastify";
 
 const EMPTY_CLIENT = {
   prenom: "", nom: "", tel: "", email: "", dateNaiss: "",
   quartier: "Maarif", adresse: "", cinNum: "", cinExp: "", note: "",
   lat: null, lng: null,
 };
+
+const IncompleteClientToast = ({ clientId, onComplete }) => (
+  <div className="flex items-center justify-between w-full gap-3">
+    <span className="text-xs font-bold text-slate-800 tracking-tight">⚠️ Dossier client incomplet</span>
+    <button
+      onClick={() => {
+        onComplete(clientId);
+        toast.dismiss();
+      }}
+      className="px-3 py-1 text-[10px] font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 uppercase tracking-wider shadow-sm transition-all"
+    >
+      Compléter →
+    </button>
+  </div>
+);
 
 const Clients = () => {
   const [clients, setClients]                 = useState([]);
@@ -44,7 +60,6 @@ const Clients = () => {
 
   useEffect(() => { loadClients(); }, [loadClients]);
 
-  // Enrichir clients avec leurs commandes
   useEffect(() => {
     if (clients.length === 0) { setClientsEnriched([]); return; }
     const enriched = clients.map((client) => {
@@ -72,15 +87,34 @@ const Clients = () => {
       )
     : clientsEnriched;
 
+  const isClientIncomplete = (client) => {
+    const requiredDocs = ["cin_r", "cin_v"];
+    const hasRequiredDocs = requiredDocs.every(
+      (doc) => client.docs && client.docs[doc] && client.docs[doc].length > 0
+    );
+    const hasCinNum = client.cinNum && client.cinNum.trim().length > 0;
+    return !hasRequiredDocs || !hasCinNum;
+  };
+
   const handleAdd = async () => {
     try {
-      await clientService.create(newClient);
-      toast.success("Client créé avec succès");
+      const createdClient = await clientService.create(newClient);
+      toast.success("Client créé");
       setShowAddModal(false);
       setNewClient(EMPTY_CLIENT);
       await loadClients();
+
+      if (isClientIncomplete(createdClient)) {
+        toast(
+          <IncompleteClientToast
+            clientId={createdClient._id}
+            onComplete={(id) => setSelectedClientId(id)}
+          />,
+          { autoClose: false, closeOnClick: false, draggable: false }
+        );
+      }
     } catch (error) {
-      toast.error("Erreur lors de la création");
+      toast.error("Erreur création");
     }
   };
 
@@ -91,7 +125,7 @@ const Clients = () => {
       setShowEditModal(false);
       await loadClients();
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error("Erreur mise à jour");
     }
   };
 
@@ -102,13 +136,13 @@ const Clients = () => {
       toast.success("Client supprimé");
       await loadClients();
     } catch (error) {
-      toast.error("Erreur lors de la suppression");
+      toast.error("Erreur suppression");
     }
   };
 
   const handleExport = () => {
-    const headers = ["Prénom", "Nom", "Téléphone", "Email", "Quartier", "Adresse", "CIN"];
-    const rows = filteredClients.map((c) => [c.prenom, c.nom, c.tel, c.email, c.quartier, c.adresse, c.cinNum]);
+    const headers = ["Prénom", "Nom", "Téléphone", "Email", "Adresse"];
+    const rows = filteredClients.map((c) => [c.prenom, c.nom, c.tel, c.email, c.adresse || ""]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -120,10 +154,10 @@ const Clients = () => {
   };
 
   if (isLoading) return (
-    <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-600">Chargement des clients...</p>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="relative">
+        <div className="w-10 h-10 border-2 border-amber-600/20 rounded-full" />
+        <div className="w-10 h-10 border-2 border-amber-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
       </div>
     </div>
   );
@@ -137,22 +171,34 @@ const Clients = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
-      <ClientHeader total={clientsEnriched.length} onExport={handleExport} onAdd={() => setShowAddModal(true)} />
-      <ClientFilters search={search} onSearchChange={setSearch} />
-      <ClientTable
-        clients={filteredClients}
-        onView={(client) => setSelectedClientId(client._id)}
-        onEdit={(client) => { setEditClient(client); setShowEditModal(true); }}
-        onDelete={handleDelete}
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <ClientHeader 
+        total={clientsEnriched.length} 
+        onExport={handleExport} 
+        onAdd={() => setShowAddModal(true)} 
       />
+      
+      <ClientFilters 
+        search={search} 
+        onSearchChange={setSearch} 
+      />
+
+      <div className="card-linear overflow-hidden">
+        <ClientTable
+          clients={filteredClients}
+          onView={(client) => setSelectedClientId(client._id)}
+          onEdit={(client) => { setEditClient(client); setShowEditModal(true); }}
+          onDelete={handleDelete}
+        />
+      </div>
+
       <ClientModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         client={newClient}
         setClient={setNewClient}
         onSave={handleAdd}
-        title="Nouveau client"
+        title="Nouveau Client"
         isEditing={false}
       />
       <ClientModal
@@ -161,7 +207,7 @@ const Clients = () => {
         client={editClient}
         setClient={setEditClient}
         onSave={handleUpdate}
-        title="Modifier le client"
+        title="Modifier le Client"
         isEditing={true}
       />
     </div>
