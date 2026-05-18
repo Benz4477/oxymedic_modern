@@ -2,16 +2,16 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { getMenuForUser } from "../../config/menuItems";
 
-const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
+const Sidebar = ({ isOpen, onClose, user, activeMagasin, onLogout }) => {
   const navigate = useNavigate();
-  const menuItems = getMenuForUser(user);
+  const menuItems = getMenuForUser(user, activeMagasin?.type);
 
   const handleLogout = () => {
     if (onLogout) onLogout();
     else {
       // comportement par défaut
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       navigate("/login");
     }
   };
@@ -50,24 +50,24 @@ const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-64 flex flex-col bg-gray-900 text-white
-          transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 z-50 h-full w-64 flex flex-col bg-white text-slate-900
+          border-r border-slate-100 transition-transform duration-300 ease-in-out
           md:relative md:translate-x-0
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         {/* Header avec logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
           <img
             src="/Logo1.png"
             alt="OXYMEDIC"
-            className="w-20 h-20 object-contain"
+            className="w-12 h-12 object-contain drop-shadow-sm"
           />
           <div>
-            <div className="text-sm font-extrabold tracking-wide text-white">
+            <div className="text-xs font-black tracking-wider text-slate-900 font-display">
               OXYMEDIC
             </div>
-            <div className="text-[9px] text-white/30 uppercase tracking-wider">
+            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
               Gestion Pro
             </div>
           </div>
@@ -79,7 +79,7 @@ const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
             <div key={idx}>
               {/* Séparateur de section */}
               {section.title && (
-                <div className="text-[9px] font-extrabold uppercase tracking-wider text-white/30 px-5 pt-5 pb-1">
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-300 px-5 pt-5 pb-1">
                   {section.title}
                 </div>
               )}
@@ -98,23 +98,27 @@ const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
                     key={item.id}
                     to={`/app/${item.id}`}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 mx-2 my-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200
+                      `group flex items-center gap-3 mx-3 my-0.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300
                       ${
                         isActive
-                          ? "bg-green-500/20 text-green-400 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.2)]"
-                          : "text-white/50 hover:bg-white/10 hover:text-white/85"
+                          ? "bg-amber-50/70 text-amber-700 shadow-sm border border-amber-100/60"
+                          : "text-slate-500 hover:bg-slate-50/80 hover:text-slate-900 border border-transparent"
                       }`
                     }
                     onClick={onClose}
                   >
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center bg-white/10 text-sm">
-                      <Icon size={14} />
-                    </div>
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-red-500 text-white">
-                        {item.badge}
-                      </span>
+                    {({ isActive }) => (
+                      <>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 ${isActive ? "bg-white text-amber-600 shadow-sm" : "bg-slate-50 text-slate-400 group-hover:text-amber-500 group-hover:bg-white"}`}>
+                          <Icon size={14} />
+                        </div>
+                        <span className="flex-1 tracking-tight">{item.label}</span>
+                        {item.badge && (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-100">
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
                     )}
                   </NavLink>
                 );
@@ -124,24 +128,24 @@ const Sidebar = ({ isOpen, onClose, user, onLogout }) => {
         </nav>
 
         {/* Footer utilisateur */}
-        <div className="border-t border-white/10 p-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-linear-to-br from-green-700 to-green-600 flex items-center justify-center text-xs font-bold text-white">
+        <div className="border-t border-slate-100 p-4 flex items-center gap-3 bg-slate-50/50">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-sm font-black text-amber-700 shadow-sm">
             {getInitials()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-white/90 truncate">
+            <div className="text-sm font-black text-slate-900 truncate">
               {user?.name || "Utilisateur"}
             </div>
-            <div className="text-[10px] text-white/30">
+            <div className="text-[10px] font-bold text-slate-400">
               {roleLabels[user?.role] || user?.role || "Rôle"}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-7 h-7 rounded-md border border-white/20 bg-transparent text-white/40 hover:bg-white/10 hover:text-white flex items-center justify-center transition"
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 flex items-center justify-center transition-all shadow-sm"
             title="Déconnexion"
           >
-            <span className="text-sm">⏏</span>
+            <span className="text-lg">⏏</span>
           </button>
         </div>
       </aside>
