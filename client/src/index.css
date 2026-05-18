@@ -29,6 +29,60 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Design System Linear Light - Overrides Globaux Oxymedic
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Remplacement des coins ronds bubly [2rem] par des coins de précision 1rem */
+.rounded-\[2rem\] {
+  border-radius: 1rem !important;
+}
+
+/* Resserrement des coins ronds 3xl et 2xl des headers et conteneurs */
+.rounded-3xl, .rounded-2xl {
+  border-radius: 0.75rem !important;
+}
+
+/* Uniformisation des bordures de cartes Slate douces */
+.border-slate-100, .border-slate-200 {
+  border-color: rgba(226, 232, 240, 0.6) !important;
+}
+
+/* Remplacement des ombres et lueurs vertes d'époque par des ombrages fins */
+.hover\:shadow-emerald-500\/5:hover,
+.hover\:shadow-emerald-500\/10:hover,
+.hover\:shadow-emerald-500\/20:hover,
+.shadow-emerald-100,
+.shadow-emerald-200,
+.shadow-emerald-500\/10,
+.shadow-emerald-500\/20,
+.shadow-emerald-600\/20 {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Alignement de tous les boutons et badges de statut actifs vers la charte ambrée */
+.bg-emerald-600 {
+  background-color: #f59e0b !important; /* amber-500 */
+}
+.bg-emerald-600:hover, .hover\:bg-emerald-700:hover {
+  background-color: #d97706 !important; /* amber-600 */
+}
+.text-emerald-600 {
+  color: #d97706 !important; /* amber-600 */
+}
+.border-emerald-600 {
+  border-color: #f59e0b !important; /* amber-500 */
+}
+.bg-emerald-50 {
+  background-color: #fef8e6 !important; /* bg-amber-50 */
+}
+.text-emerald-500 {
+  color: #f59e0b !important; /* text-amber-500 */
+}
+.border-emerald-100 {
+  border-color: rgba(254, 243, 199, 0.6) !important; /* border-amber-100 */
+}
+
+/* ═══════════════════════════════════════════════════════════════
    OXYMEDIC Gestion Pro v27 — Styles CSS essentiels (Version Nettoyée)
    ══════════════════════════════════════════════════════════════
    
