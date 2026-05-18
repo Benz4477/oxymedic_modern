@@ -9,7 +9,7 @@ const router = express.Router();
 router.post(
   "/login",
   [
-    body("username")
+    body("email")
       .trim()
       .notEmpty()
       .withMessage("L'identifiant est requis")
@@ -29,7 +29,9 @@ router.post(
 // POST /api/auth/logout - Déconnexion utilisateur
 router.post("/logout", logout);
 
+import { protect } from "../middleware/auth.js";
+
 // GET /api/auth/me - Obtenir l'utilisateur connecté
-router.get("/me", getMe);
+router.get("/me", protect, getMe);
 
 export default router;
