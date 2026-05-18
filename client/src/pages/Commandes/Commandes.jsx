@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, ShoppingBag, ShieldAlert } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../../api";
 import commandeService from "../../services/commandeService";
@@ -16,9 +16,9 @@ import BonEnlevementModal from "./components/BonEnlevementModal";
 import BonRetourModal     from "./components/BonRetourModal";
 
 const EMPTY_FORM = {
-  client:         "",   // ObjectId
-  equipement:     "",   // ObjectId
-  unite:          "",   // ObjectId
+  client:         "",   
+  equipement:     "",   
+  unite:          "",   
   dateDebut:      "",
   dateFin:        "",
   modePaiement:   "cash_magasin",
@@ -31,6 +31,7 @@ const EMPTY_FORM = {
 };
 
 const Commandes = () => {
+  const { isDepot } = useOutletContext();
   const navigate = useNavigate();
   const [commandes, setCommandes]     = useState([]);
   const [clients, setClients]         = useState([]);
@@ -50,7 +51,6 @@ const Commandes = () => {
   const [showBonRet, setShowBonRet] = useState(false);
   const [selected, setSelected]       = useState(null);
 
-  // ── Chargement ────────────────────────────────────────────
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -77,7 +77,6 @@ const Commandes = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── Filtrage ──────────────────────────────────────────────
   const filtered = commandes.filter((c) => {
     const clientNom = c.client
       ? `${c.client.prenom || ""} ${c.client.nom || ""}`.toLowerCase()
@@ -89,7 +88,6 @@ const Commandes = () => {
     return matchSearch && matchStatus;
   });
 
-  // ── KPIs ──────────────────────────────────────────────────
   const kpis = {
     total:       commandes.length,
     actives:     commandes.filter((c) => c.statut === "active").length,
@@ -97,8 +95,8 @@ const Commandes = () => {
     totalAmount: commandes.reduce((sum, c) => sum + (c.montantTTC || 0), 0),
   };
 
-  // ── CRUD ──────────────────────────────────────────────────
   const handleAdd = () => {
+    if (isDepot) return toast.warning("Les ventes sont interdites depuis un dépôt.");
     setEditMode(false);
     setFormData(EMPTY_FORM);
     setShowModal(true);
@@ -135,6 +133,9 @@ const Commandes = () => {
       if (editMode && selectedCommande) {
         await commandeService.update(selectedCommande._id, formData);
         toast.success("Commande mise à jour");
+        window.dispatchEvent(new CustomEvent('commandeUpdated', { 
+          detail: { id: selectedCommande._id, montantCaution: formData.montantCaution } 
+        }));
       } else {
         await commandeService.create(formData);
         toast.success("Commande créée");
@@ -142,7 +143,7 @@ const Commandes = () => {
       setShowModal(false);
       await loadData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Erreur lors de la sauvegarde");
+      toast.error(error.response?.data?.message || "Erreur sauvegarde");
     }
   };
 
@@ -153,7 +154,7 @@ const Commandes = () => {
       toast.success("Commande supprimée");
       await loadData();
     } catch (error) {
-      toast.error("Erreur lors de la suppression");
+      toast.error("Erreur suppression");
     }
   };
 
@@ -163,7 +164,7 @@ const Commandes = () => {
       toast.success("Statut mis à jour");
       await loadData();
     } catch (error) {
-      toast.error("Erreur lors du changement de statut");
+      toast.error("Erreur changement statut");
     }
   };
 
@@ -178,50 +179,54 @@ const Commandes = () => {
       toast.success("Commande reconduite");
       await loadData();
     } catch (error) {
-      toast.error("Erreur lors de la reconduction");
+      toast.error("Erreur reconduction");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="text-slate-400">Chargement des commandes...</div>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="relative">
+        <div className="w-10 h-10 border-2 border-amber-600/20 rounded-full" />
+        <div className="w-10 h-10 border-2 border-amber-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Commandes
-          </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {commandes.length} commande{commandes.length !== 1 ? "s" : ""}
-          </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
+        <div className="flex items-center gap-3 md:gap-4 font-display">
+          <div className={`p-3 rounded-xl shadow-xl ${isDepot ? 'bg-slate-400' : 'bg-amber-500 shadow-amber-500/10'} text-white`}>
+            <ShoppingBag size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl md:text-2xl font-bold text-slate-950 tracking-tight">Commandes</h1>
+              {isDepot && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold uppercase rounded-md">
+                  <ShieldAlert size={10} /> Mode Lecture Seule
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold mt-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDepot ? 'bg-slate-400' : 'bg-amber-500'}`} />
+              {commandes.length} commandes enregistrées
+            </div>
+          </div>
         </div>
         <button
           onClick={handleAdd}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all"
+          disabled={isDepot}
+          title={isDepot ? "Interdit en mode Dépôt" : ""}
+          className={`flex items-center gap-2 px-5 py-2 text-white rounded-xl transition shadow-md font-bold text-xs ${isDepot ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/10'}`}
         >
-          <Plus size={16} /> Nouvelle commande
+          <Plus size={14} /> Nouvelle Commande
         </button>
       </div>
 
-      {/* KPIs */}
-      <CommandeStats
-        total={kpis.total}
-        actives={kpis.actives}
-        pending={kpis.pending}
-        totalAmount={kpis.totalAmount}
-      />
+      <CommandeStats {...kpis} />
 
-      {/* Filtres */}
       <CommandeFilters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -229,8 +234,7 @@ const Commandes = () => {
         setStatusFilter={setStatusFilter}
       />
 
-      {/* Tableau */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="card-linear overflow-hidden">
         <CommandeTable
           commandes={filtered}
           onEdit={handleEdit}
@@ -238,13 +242,8 @@ const Commandes = () => {
           onStatusChange={handleStatusChange}
           onReconduire={handleReconduire}
           onDevis={(cmd) => {
-            // Rediriger vers la page des devis avec l'ID du devis associé à cette commande
-            if (cmd.devis) {
-              navigate(`/devis?view=${cmd.devis}`);
-            } else {
-              toast.info("Aucun devis associé à cette commande");
-              navigate("/devis");
-            }
+            if (cmd.devis) navigate(`/devis?view=${cmd.devis}`);
+            else { toast.info("Aucun devis associé"); navigate("/devis"); }
           }}
           onReceipt={(cmd) => { setReceiptCmd(cmd); setShowReceipt(true); }}
           onBonEnl={(cmd) => { setSelected(cmd); setShowBonEnl(true); }}
@@ -252,42 +251,10 @@ const Commandes = () => {
         />
       </div>
 
-      {/* Modal commande */}
-      <CommandeModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        editMode={editMode}
-        formData={formData}
-        setFormData={setFormData}
-        clients={clients}
-        equipements={equipements}
-        units={units}
-        onSave={handleSave}
-      />
-
-      {/* Modal reçu */}
-      <ReceiptModal
-        isOpen={showReceipt}
-        onClose={() => setShowReceipt(false)}
-        commande={receiptCmd}
-        societe={societe}
-      />
-
-      {/* Modal bon d'enlèvement */}
-      <BonEnlevementModal
-        isOpen={showBonEnl}
-        onClose={() => setShowBonEnl(false)}
-        commande={selected}
-        societe={societe}
-      />
-
-      {/* Modal bon de retour */}
-      <BonRetourModal
-        isOpen={showBonRet}
-        onClose={() => setShowBonRet(false)}
-        commande={selected}
-        societe={societe}
-      />
+      <CommandeModal isOpen={showModal} onClose={() => setShowModal(false)} editMode={editMode} formData={formData} setFormData={setFormData} clients={clients} equipements={equipements} units={units} onSave={handleSave} />
+      <ReceiptModal isOpen={showReceipt} onClose={() => setShowReceipt(false)} commande={receiptCmd} societe={societe} />
+      <BonEnlevementModal isOpen={showBonEnl} onClose={() => setShowBonEnl(false)} commande={selected} societe={societe} />
+      <BonRetourModal isOpen={showBonRet} onClose={() => setShowBonRet(false)} commande={selected} societe={societe} />
     </div>
   );
 };
