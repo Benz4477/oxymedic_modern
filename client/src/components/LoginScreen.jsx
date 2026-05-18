@@ -8,7 +8,7 @@ import { useAuthStore } from "../store/authStore";
 const LoginScreen = () => {
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,14 +16,14 @@ const LoginScreen = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !password) {
+    if (!email.trim() || !password) {
       setError("❌ Veuillez remplir tous les champs");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const response = await login(username, password);
+      const response = await login(email, password);
       
       // Utiliser le store d'authentification Zustand
       useAuthStore.getState().login(response.data, response.token);
@@ -68,14 +68,14 @@ const LoginScreen = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Utilisateur</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Adresse Email</label>
             <input
-              type="text"
-              placeholder="Nom d'utilisateur"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="prenom.nom@oxymedic.fr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-black focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all outline-none placeholder:text-slate-200"
-              autoComplete="username"
+              autoComplete="email"
               autoFocus
             />
           </div>
