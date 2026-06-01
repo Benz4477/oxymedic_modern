@@ -1,52 +1,86 @@
-const Loyalty = require('../models/Loyalty');
+import Loyalty from '../models/Loyalty.js';
 
-const getAllLoyalty = async (req, res) => {
+export const getAllLoyalty = async (req, res) => {
   try {
-    const loyalty = await Loyalty.find({}).sort({ clientId: 1 });
+    const loyalty = await Loyalty.find({}).sort({ createdAt: -1 });
     res.json(loyalty);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const getLoyaltyByClientId = async (req, res) => {
+export const getLoyaltyByClient = async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOne({ clientId: req.params.id });
-    if (!loyalty) return res.status(404).json({ message: 'Fidélité non trouvée' });
+    const loyalty = await Loyalty.findOne({ client: req.params.clientId });
+    if (!loyalty) return res.status(404).json({ success: false, message: 'Carte non trouvée' });
     res.json(loyalty);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const createLoyalty = async (req, res) => {
+export const createLoyaltyCard = async (req, res) => {
   try {
     const loyalty = new Loyalty(req.body);
     const newLoyalty = await loyalty.save();
-    res.status(201).json(newLoyalty);
+    res.status(201).json({ success: true, data: newLoyalty });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-const updateLoyalty = async (req, res) => {
+export const addPoints = async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOneAndUpdate({ clientId: req.params.id }, req.body, { new: true });
-    if (!loyalty) return res.status(404).json({ message: 'Fidélité non trouvée' });
-    res.json(loyalty);
+    const { clientId, points, reason } = req.body;
+    const loyalty = await Loyalty.findOne({ client: clientId });
+    if (!loyalty) return res.status(404).json({ success: false, message: 'Carte non trouvée' });
+    
+    loyalty.points += points;
+    loyalty.history.push({ type: 'earn', points, reason, date: new Date() });
+    await loyalty.save();
+    res.json({ success: true, data: loyalty });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-const deleteLoyalty = async (req, res) => {
+export const usePoints = async (req, res) => {
   try {
-    const loyalty = await Loyalty.findOneAndDelete({ clientId: req.params.id });
-    if (!loyalty) return res.status(404).json({ message: 'Fidélité non trouvée' });
-    res.json({ message: 'Fidélité supprimée avec succès' });
+    const { clientId, points, reason } = req.body;
+    const loyalty = await Loyalty.findOne({ client: clientId });
+    if (!loyalty) return res.status(404).json({ success: false, message: 'Carte non trouvée' });
+    
+    if (loyalty.points < points) {
+      return res.status(400).json({ success: false, message: 'Points insuffisants' });
+    }
+    
+    loyalty.points -= points;
+    loyalty.history.push({ type: 'redeem', points, reason, date: new Date() });
+    await loyalty.save();
+    res.json({ success: true, data: loyalty });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-module.exports = { getAllLoyalty, getLoyaltyByClientId, createLoyalty, updateLoyalty, deleteLoyalty };
+export const deleteLoyaltyCard = async (req, res) => {
+  try {
+    const loyalty = await Loyalty.findByIdAndDelete(req.params.id);
+    if (!loyalty) return res.status(404).json({ success: false, message: 'Carte non trouvée' });
+    res.json({ success: true, message: 'Carte supprimée' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getLoyaltyStats = async (req, res) => {
+  try {
+    res.json({
+      totalCards: await Loyalty.countDocuments(),
+      totalPointsEarned: 0,
+      totalPointsRedeemed: 0
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
