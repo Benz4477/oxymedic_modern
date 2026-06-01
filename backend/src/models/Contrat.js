@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-const contratSchema = new mongoose.Schema(
-  {
+const contratSchema = new mongoose.Schema({
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
     reference: {
       type: String,
       unique: true,

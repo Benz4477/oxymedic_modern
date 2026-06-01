@@ -59,20 +59,22 @@ const PaiementDetailModal = ({ isOpen, onClose, paiement }) => {
   const StatutIcon = statut.icon;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-100 px-5 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <CreditCard size={15} className="text-emerald-600" />
-            <h3 className="text-sm font-extrabold text-slate-900">Détail paiement</h3>
+        <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-8 py-5 flex justify-between items-center z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-50 rounded-xl">
+              <CreditCard size={18} className="text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-extrabold tracking-tight text-slate-900">Détail paiement</h3>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-            <X size={14} />
+            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 hover:rotate-90 transition-all">
+            <X size={16} />
           </button>
         </div>
 

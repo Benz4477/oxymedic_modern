@@ -9,7 +9,7 @@ const FactureFilters = ({ searchTerm, setSearchTerm, typeFilter, setTypeFilter, 
         <input
           type="text"
           placeholder="Rechercher par référence, client, commande..."
-          className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition"
+          className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -17,7 +17,7 @@ const FactureFilters = ({ searchTerm, setSearchTerm, typeFilter, setTypeFilter, 
       <select
         value={typeFilter}
         onChange={(e) => setTypeFilter(e.target.value)}
-        className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        className="px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all cursor-pointer"
       >
         <option value="">Tous les types</option>
         <option value="facture">Facture</option>
@@ -26,7 +26,7 @@ const FactureFilters = ({ searchTerm, setSearchTerm, typeFilter, setTypeFilter, 
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        className="px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all cursor-pointer"
       >
         <option value="">Tous les statuts</option>
         <option value="draft">Brouillon</option>

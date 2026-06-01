@@ -11,6 +11,7 @@ const CLIENT_POP = { path: "client", select: "prenom nom tel adresse quartier" }
 export const getAllInteractions = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.client) filter.client = req.query.client;
     if (req.query.type)   filter.type   = req.query.type;
     const data = await Interaction.find(filter).populate(CLIENT_POP).sort({ date: -1 });
@@ -25,6 +26,7 @@ export const createInteraction = async (req, res) => {
     if (!titre)  return res.status(400).json({ success: false, message: "Titre requis" });
     const doc = await Interaction.create({
       client, type, titre, note,
+      magasin: req.magasinId || null,
       date: date ? new Date(date) : new Date(),
       createdBy: req.user?.name || "Admin",
     });
@@ -35,7 +37,9 @@ export const createInteraction = async (req, res) => {
 
 export const deleteInteraction = async (req, res) => {
   try {
-    await Interaction.findByIdAndDelete(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    await Interaction.findOneAndDelete(filter);
     res.json({ success: true, message: "Interaction supprimée" });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
@@ -47,6 +51,7 @@ export const deleteInteraction = async (req, res) => {
 export const getAllTaches = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.done   !== undefined) filter.done   = req.query.done === "true";
     if (req.query.client) filter.client = req.query.client;
     const data = await Tache.find(filter).populate(CLIENT_POP).sort({ echeance: 1, createdAt: -1 });
@@ -60,6 +65,7 @@ export const createTache = async (req, res) => {
     if (!titre) return res.status(400).json({ success: false, message: "Titre requis" });
     const doc = await Tache.create({
       titre, client: client || null, type, priorite,
+      magasin: req.magasinId || null,
       echeance: echeance ? new Date(echeance) : null,
       assignedTo: assignedTo || "Admin",
       createdBy: req.user?.name || "Admin",
@@ -71,7 +77,9 @@ export const createTache = async (req, res) => {
 
 export const toggleTache = async (req, res) => {
   try {
-    const tache = await Tache.findById(req.params.id);
+    const filterToggle = { _id: req.params.id };
+    if (req.magasinId) filterToggle.magasin = req.magasinId;
+    const tache = await Tache.findOne(filterToggle);
     if (!tache) return res.status(404).json({ success: false, message: "Tâche non trouvée" });
     tache.done = !tache.done;
     await tache.save();
@@ -82,7 +90,9 @@ export const toggleTache = async (req, res) => {
 
 export const deleteTache = async (req, res) => {
   try {
-    await Tache.findByIdAndDelete(req.params.id);
+    const filterDel = { _id: req.params.id };
+    if (req.magasinId) filterDel.magasin = req.magasinId;
+    await Tache.findOneAndDelete(filterDel);
     res.json({ success: true, message: "Tâche supprimée" });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };
@@ -93,8 +103,9 @@ export const deleteTache = async (req, res) => {
 
 export const getSegments = async (req, res) => {
   try {
-    const clients   = await Client.find();
-    const commandes = await Commande.find();
+    const clientFilter = req.magasinId ? { magasin: req.magasinId } : {};
+    const clients   = await Client.find(clientFilter);
+    const commandes = await Commande.find(clientFilter);
 
     const scored = clients.map(c => {
       const cmds  = commandes.filter(x => String(x.client) === String(c._id));
@@ -140,10 +151,11 @@ export const getSegments = async (req, res) => {
 
 export const getCrmStats = async (req, res) => {
   try {
+    const magasinFilter = req.magasinId ? { magasin: req.magasinId } : {};
     const now      = new Date(); now.setHours(0, 0, 0, 0);
-    const taches   = await Tache.find();
-    const events   = await Interaction.find();
-    const clients  = await Client.find();
+    const taches   = await Tache.find(magasinFilter);
+    const events   = await Interaction.find(magasinFilter);
+    const clients  = await Client.find(magasinFilter);
 
     const overdue  = taches.filter(t => !t.done && t.echeance && new Date(t.echeance) < now).length;
     const pending  = taches.filter(t => !t.done).length;

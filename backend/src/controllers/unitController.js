@@ -5,6 +5,7 @@ import Equipement from "../models/Equipement.js";
 const getAllUnits = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.statut)     filter.statut     = req.query.statut;
     if (req.query.equipement) filter.equipement = req.query.equipement;
 
@@ -22,7 +23,9 @@ const getAllUnits = async (req, res) => {
 // GET /api/units/:id
 const getUnitById = async (req, res) => {
   try {
-    const unit = await Unit.findById(req.params.id)
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const unit = await Unit.findOne(filter)
       .populate("equipement", "name icon cat cardColor photo")
       .populate("equipId", "name icon cat cardColor photo") // Compatibilité ancien schéma
       .populate("clientActuel", "prenom nom tel")
@@ -45,7 +48,9 @@ const getUnitById = async (req, res) => {
 // GET /api/units/equipement/:equipementId
 const getUnitsByEquipement = async (req, res) => {
   try {
-    const units = await Unit.find({ equipement: req.params.equipementId })
+    const filter = { equipement: req.params.equipementId };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const units = await Unit.find(filter)
       .populate("clientActuel", "prenom nom tel")
       .sort({ serial: 1 });
 
@@ -62,9 +67,9 @@ const searchUnit = async (req, res) => {
     if (!q) return res.status(400).json({ success: false, message: "Paramètre q requis" });
 
     const regex = new RegExp(q, "i");
-    const units = await Unit.find({
-      $or: [{ serial: regex }, { barcode: regex }],
-    }).populate("equipement", "name icon cat");
+    const filter = { $or: [{ serial: regex }, { barcode: regex }] };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const units = await Unit.find(filter).populate("equipement", "name icon cat");
 
     res.json({ success: true, data: units });
   } catch (error) {
@@ -84,7 +89,10 @@ const createUnit = async (req, res) => {
     const equip = await Equipement.findById(equipement);
     if (!equip) return res.status(404).json({ success: false, message: "Équipement non trouvé" });
 
-    const unit = await Unit.create(req.body);
+    const unitData = { ...req.body };
+    if (req.magasinId) unitData.magasin = req.magasinId;
+
+    const unit = await Unit.create(unitData);
     const populated = await unit.populate("equipement", "name icon cat");
 
     res.status(201).json({ success: true, data: populated, message: "Unité créée avec succès" });
@@ -105,8 +113,11 @@ const updateUnit = async (req, res) => {
     delete updates.commandeActive;
     delete updates.clientActuel;
 
-    const unit = await Unit.findByIdAndUpdate(
-      req.params.id,
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+
+    const unit = await Unit.findOneAndUpdate(
+      filter,
       updates,
       { new: true, runValidators: true }
     ).populate("equipement", "name icon cat");
@@ -125,7 +136,9 @@ const updateUnit = async (req, res) => {
 const deleteUnit = async (req, res) => {
   try {
     // Vérifier que l'unité n'est pas en cours de location
-    const unit = await Unit.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const unit = await Unit.findOne(filter);
     if (!unit) return res.status(404).json({ success: false, message: "Unité non trouvée" });
 
     if (unit.statut === "loue") {

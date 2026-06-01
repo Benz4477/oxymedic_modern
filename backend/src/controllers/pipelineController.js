@@ -17,7 +17,8 @@ const STAGES = [
 // GET /api/pipeline
 export const getAllOpportunites = async (req, res) => {
   try {
-    const data = await Opportunite.find().populate(POP).sort({ createdAt: -1 });
+    const filter = req.magasinId ? { magasin: req.magasinId } : {};
+    const data = await Opportunite.find(filter).populate(POP).sort({ createdAt: -1 });
     const active = data.filter(o => o.stageId < 5 && o.stageId !== 6);
     const won    = data.filter(o => o.stageId === 5);
     const closed = data.filter(o => o.stageId === 5 || o.stageId === 6);
@@ -55,6 +56,7 @@ export const createOpportunite = async (req, res) => {
       amount: amount || 0,
       prob: prob || stage?.prob || 50,
       notes: notes || "",
+      magasin: req.magasinId || null,
       createdBy: req.user?.name || "Admin",
     });
     const populated = await Opportunite.findById(doc._id).populate(POP);
@@ -65,7 +67,9 @@ export const createOpportunite = async (req, res) => {
 // PUT /api/pipeline/:id
 export const updateOpportunite = async (req, res) => {
   try {
-    const updated = await Opportunite.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate(POP);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const updated = await Opportunite.findOneAndUpdate(filter, req.body, { new: true }).populate(POP);
     if (!updated) return res.status(404).json({ success: false, message: "Opportunité non trouvée" });
     res.json({ success: true, data: updated });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
@@ -78,7 +82,9 @@ export const moveOpportunite = async (req, res) => {
     const stage = STAGES.find(s => s.id === stageId);
     if (!stage) return res.status(400).json({ success: false, message: "Étape invalide" });
 
-    const updated = await Opportunite.findByIdAndUpdate(req.params.id,
+    const filterMove = { _id: req.params.id };
+    if (req.magasinId) filterMove.magasin = req.magasinId;
+    const updated = await Opportunite.findOneAndUpdate(filterMove,
       { stageId, prob: stage.prob },
       { new: true }
     ).populate(POP);
@@ -90,7 +96,9 @@ export const moveOpportunite = async (req, res) => {
 // PUT /api/pipeline/:id/advance
 export const advanceOpportunite = async (req, res) => {
   try {
-    const opp = await Opportunite.findById(req.params.id);
+    const filterAdv = { _id: req.params.id };
+    if (req.magasinId) filterAdv.magasin = req.magasinId;
+    const opp = await Opportunite.findOne(filterAdv);
     if (!opp) return res.status(404).json({ success: false, message: "Opportunité non trouvée" });
 
     const nextStage = STAGES.find(s => s.id > opp.stageId && s.id < 6);
@@ -108,7 +116,9 @@ export const advanceOpportunite = async (req, res) => {
 // DELETE /api/pipeline/:id
 export const deleteOpportunite = async (req, res) => {
   try {
-    await Opportunite.findByIdAndDelete(req.params.id);
+    const filterDel = { _id: req.params.id };
+    if (req.magasinId) filterDel.magasin = req.magasinId;
+    await Opportunite.findOneAndDelete(filterDel);
     res.json({ success: true, message: "Opportunité supprimée" });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 };

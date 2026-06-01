@@ -6,11 +6,11 @@ const PaiementFilters = ({ search, setSearch, statusFilter, setStatusFilter, mod
     <div className="relative flex-1 min-w-[200px]">
       <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
       <input type="text" placeholder="Référence, client, commande..."
-        className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
         value={search} onChange={(e) => setSearch(e.target.value)} />
     </div>
     <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-      className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-slate-50">
+      className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white font-medium text-slate-600 transition-all cursor-pointer">
       <option value="">Tous les statuts</option>
       <option value="paid">Payé</option>
       <option value="pending">En attente</option>
@@ -18,7 +18,7 @@ const PaiementFilters = ({ search, setSearch, statusFilter, setStatusFilter, mod
       <option value="refunded">Remboursé</option>
     </select>
     <select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}
-      className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-slate-50">
+      className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white font-medium text-slate-600 transition-all cursor-pointer">
       <option value="">Tous les modes</option>
       <option value="espece">Espèce</option>
       <option value="virement">Virement</option>

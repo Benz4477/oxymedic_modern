@@ -11,6 +11,7 @@ const POPULATE = [
 export const getAllFactures = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.status)   filter.status   = req.query.status;
     if (req.query.type)     filter.type     = req.query.type;
     if (req.query.client)   filter.client   = req.query.client;
@@ -47,7 +48,9 @@ export const getAllFactures = async (req, res) => {
 // GET /api/factures/:id
 export const getFactureById = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id).populate(POPULATE);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const facture = await Facture.findOne(filter).populate(POPULATE);
     if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
     res.json({ success: true, data: facture });
   } catch (error) {
@@ -83,6 +86,7 @@ export const createFacture = async (req, res) => {
       clientNom,
       date,
       dateEcheance,
+      magasin:       req.magasinId || null,
       createdBy:     req.user?.name || "System",
     });
 
@@ -108,7 +112,9 @@ export const createFacture = async (req, res) => {
 // PUT /api/factures/:id
 export const updateFacture = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const facture = await Facture.findOne(filter);
     if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
     if (facture.status === "paid") {
       return res.status(400).json({ success: false, message: "Impossible de modifier une facture payée" });
@@ -118,8 +124,8 @@ export const updateFacture = async (req, res) => {
     if (updates.date)         updates.date         = new Date(updates.date);
     if (updates.dateEcheance) updates.dateEcheance = new Date(updates.dateEcheance);
 
-    const updated = await Facture.findByIdAndUpdate(
-      req.params.id, updates, { new: true, runValidators: true }
+    const updated = await Facture.findOneAndUpdate(
+      filter, updates, { new: true, runValidators: true }
     ).populate(POPULATE);
 
     res.json({ success: true, data: updated, message: "Facture mise à jour" });
@@ -131,7 +137,9 @@ export const updateFacture = async (req, res) => {
 // DELETE /api/factures/:id
 export const deleteFacture = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const facture = await Facture.findOne(filter);
     if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
     if (facture.status === "paid") {
       return res.status(400).json({ success: false, message: "Impossible de supprimer une facture payée" });
@@ -147,7 +155,9 @@ export const deleteFacture = async (req, res) => {
 export const markAsPaid = async (req, res) => {
   try {
     const { montant, modePaiement } = req.body;
-    const facture = await Facture.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const facture = await Facture.findOne(filter);
     if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
     if (facture.status === "paid") return res.status(400).json({ success: false, message: "Facture déjà payée" });
     await facture.markAsPaid(montant, modePaiement);
@@ -161,8 +171,10 @@ export const markAsPaid = async (req, res) => {
 // POST /api/factures/:id/archive
 export const archiveFacture = async (req, res) => {
   try {
-    const facture = await Facture.findByIdAndUpdate(
-      req.params.id, { archived: true }, { new: true }
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const facture = await Facture.findOneAndUpdate(
+      filter, { archived: true }, { new: true }
     ).populate(POPULATE);
     if (!facture) return res.status(404).json({ success: false, message: "Facture non trouvée" });
     res.json({ success: true, data: facture, message: "Facture archivée" });
@@ -184,8 +196,10 @@ export const getNextNumero = async (req, res) => {
 // GET /api/factures/stats
 export const getFactureStats = async (req, res) => {
   try {
+    const matchQuery = { archived: false };
+    if (req.magasinId) matchQuery.magasin = req.magasinId;
     const stats = await Facture.aggregate([
-      { $match: { archived: false } },
+      { $match: matchQuery },
       { $group: {
         _id:        "$status",
         count:      { $sum: 1 },

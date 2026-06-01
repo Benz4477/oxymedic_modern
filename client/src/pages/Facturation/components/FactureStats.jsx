@@ -4,13 +4,15 @@ import { Receipt, CheckCircle, Clock, TrendingUp } from "lucide-react";
 const fmt = (n) => (n || 0).toLocaleString("fr-FR");
 
 const StatCard = ({ icon: Icon, label, value, color, bg }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}>
-      <Icon size={22} className={color} />
-    </div>
-    <div>
-      <div className="text-2xl font-extrabold tracking-tight text-slate-900 leading-none">{value}</div>
-      <div className="text-xs text-slate-400 mt-1 font-medium">{label}</div>
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group">
+    <div className="flex justify-between items-start">
+      <div>
+        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{label}</div>
+        <div className="text-2xl font-black text-slate-800 tracking-tight">{value}</div>
+      </div>
+      <div className={`p-3 rounded-2xl ${bg} group-hover:scale-110 transition-transform duration-300`}>
+        <Icon size={20} className={color} />
+      </div>
     </div>
   </div>
 );

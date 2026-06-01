@@ -32,20 +32,22 @@ const FacturePayerModal = ({ isOpen, onClose, facture, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex justify-between items-center px-5 py-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <CreditCard size={15} className="text-emerald-600" />
-            <h3 className="text-sm font-extrabold text-slate-900">
+        <div className="flex justify-between items-center px-8 py-5 border-b border-slate-100 bg-white/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-50 rounded-xl">
+              <CreditCard size={18} className="text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-extrabold tracking-tight text-slate-900">
               Enregistrer un paiement — {facture.num}
             </h3>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-            <X size={14} />
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 hover:rotate-90 transition-all">
+            <X size={16} />
           </button>
         </div>
 
@@ -129,13 +131,13 @@ const FacturePayerModal = ({ isOpen, onClose, facture, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
+        <div className="px-8 py-5 border-t border-slate-100 flex justify-end gap-3 z-10 bg-white/95 backdrop-blur-md rounded-b-[2rem]">
+          <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all">
             Annuler
           </button>
           <button onClick={handleSave}
-            className="px-4 py-1.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
-            <CreditCard size={13} /> Enregistrer le paiement
+            className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center gap-2">
+            <CreditCard size={14} /> Enregistrer
           </button>
         </div>
       </div>

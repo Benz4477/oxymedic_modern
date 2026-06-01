@@ -123,7 +123,7 @@ const Serials = () => {
       <UnitStats total={totalUnits} available={totalAvailable} rented={totalRented} maintenance={totalMaintenance} />
       <UnitFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} showArchived={showArchived} setShowArchived={setShowArchived} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-72">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(unit => (
           <UnitCard
             key={unit._id}

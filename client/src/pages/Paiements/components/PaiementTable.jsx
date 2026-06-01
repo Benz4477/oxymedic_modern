@@ -78,28 +78,28 @@ const PaiementTable = ({ paiements, onView, onEdit, onDelete, onConfirmer, onRec
                 <td className="px-4 py-3"><Badge config={MODE_CONFIG} value={p.modePaiement} /></td>
                 <td className="px-4 py-3"><Badge config={TYPE_CONFIG} value={p.type} /></td>
                 <td className="px-4 py-3"><Badge config={STATUT_CONFIG} value={p.statut} /></td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-1.5">
                     <button onClick={() => onView(p)} title="Voir détails"
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition">
+                      className="p-1.5 rounded-lg bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-600 transition-all">
                       <Eye size={13} />
                     </button>
                     <button onClick={() => onEdit(p)} title="Modifier"
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition">
+                      className="p-1.5 rounded-lg bg-amber-50 text-amber-400 hover:bg-amber-100 hover:text-amber-600 transition-all">
                       <Edit size={13} />
                     </button>
                     <button onClick={() => onRecu(p)} title="Reçu"
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition">
+                      className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all">
                       <Receipt size={13} />
                     </button>
                     {p.statut === "pending" && (
                       <button onClick={() => onConfirmer(p._id)} title="Confirmer"
-                        className="p-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition">
+                        className="p-1.5 rounded-lg bg-emerald-50 text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600 transition-all">
                         <CheckCircle size={13} />
                       </button>
                     )}
                     <button onClick={() => onDelete(p._id)} title="Supprimer"
-                      className="p-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 transition">
+                      className="p-1.5 rounded-lg bg-rose-50 text-rose-400 hover:bg-rose-100 hover:text-rose-600 transition-all">
                       <Trash2 size={13} />
                     </button>
                   </div>

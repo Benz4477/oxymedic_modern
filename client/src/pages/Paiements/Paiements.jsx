@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { Plus, CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "react-toastify";
 import paiementService from "../../services/paiementService";
 import clientService   from "../../services/clientService";
@@ -163,27 +163,44 @@ const Paiements = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50/60 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-400">Chargement des paiements...</p>
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="relative">
+        <div className="w-10 h-10 border-2 border-emerald-600/20 rounded-full" />
+        <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0" />
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-6 space-y-6">
-      <div className="flex flex-wrap justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Paiements</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {paiements.length} paiement{paiements.length !== 1 ? "s" : ""} • {stats.countPending || 0} en attente
-          </p>
+    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="p-3 bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100">
+            <CreditCard size={22} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">Paiements</h1>
+            <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {paiements.length} paiement{paiements.length !== 1 ? "s" : ""} • {stats.countPending || 0} en attente
+            </div>
+          </div>
         </div>
-        <button onClick={handleAdd}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-200 transition-all">
-          <Plus size={16} /> Nouveau paiement
-        </button>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={loadData}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-100 rounded-xl hover:bg-slate-50 transition shadow-sm font-bold text-xs"
+          >
+            <RefreshCw size={14} /> Rafraîchir
+          </button>
+          <button 
+            onClick={handleAdd}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-100 font-bold text-xs whitespace-nowrap"
+          >
+            <Plus size={16} /> Nouveau paiement
+          </button>
+        </div>
       </div>
 
       <PaiementStats stats={stats} />

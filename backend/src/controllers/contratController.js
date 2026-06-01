@@ -11,6 +11,7 @@ const COMMANDE_POP = { path: "commande", select: "reference dateDebut dateFin mo
 export const getAllContrats = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.statut) filter.statut = req.query.statut;
     if (req.query.client) filter.client = req.query.client;
     if (req.query.commande) filter.commande = req.query.commande;
@@ -29,7 +30,9 @@ export const getAllContrats = async (req, res) => {
 // ── GET ONE CONTRAT ──────────────────────────────────────
 export const getContratById = async (req, res) => {
   try {
-    const data = await Contrat.findById(req.params.id)
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const data = await Contrat.findOne(filter)
       .populate(CLIENT_POP)
       .populate(COMMANDE_POP);
     
@@ -73,6 +76,7 @@ export const createContrat = async (req, res) => {
       type: type || "location",
       commande: commandeId,
       client: commande.client._id,
+      magasin: req.magasinId || null,
       clientNom: `${commande.client.prenom} ${commande.client.nom}`,
       clientEmail: commande.client.email || "",
       clientTel: commande.client.tel || "",
@@ -95,7 +99,9 @@ export const createContrat = async (req, res) => {
 // ── GENERATE PDF ─────────────────────────────────────────
 export const generatePDF = async (req, res) => {
   try {
-    const contrat = await Contrat.findById(req.params.id)
+    const filterPdf = { _id: req.params.id };
+    if (req.magasinId) filterPdf.magasin = req.magasinId;
+    const contrat = await Contrat.findOne(filterPdf)
       .populate(CLIENT_POP)
       .populate({ 
         path: "commande", 
@@ -131,7 +137,9 @@ export const signContrat = async (req, res) => {
       return res.status(400).json({ success: false, message: "Signature requise" });
     }
 
-    const contrat = await Contrat.findById(req.params.id);
+    const filterSign = { _id: req.params.id };
+    if (req.magasinId) filterSign.magasin = req.magasinId;
+    const contrat = await Contrat.findOne(filterSign);
     if (!contrat) {
       return res.status(404).json({ success: false, message: "Contrat non trouvé" });
     }
@@ -167,7 +175,9 @@ export const signContrat = async (req, res) => {
 // ── UPDATE CONTRAT ────────────────────────────────────────
 export const updateContrat = async (req, res) => {
   try {
-    const contrat = await Contrat.findById(req.params.id);
+    const filterUpd = { _id: req.params.id };
+    if (req.magasinId) filterUpd.magasin = req.magasinId;
+    const contrat = await Contrat.findOne(filterUpd);
     if (!contrat) {
       return res.status(404).json({ success: false, message: "Contrat non trouvé" });
     }
@@ -197,7 +207,9 @@ export const updateContrat = async (req, res) => {
 // ── DELETE CONTRAT ────────────────────────────────────────
 export const deleteContrat = async (req, res) => {
   try {
-    const contrat = await Contrat.findById(req.params.id);
+    const filterDel = { _id: req.params.id };
+    if (req.magasinId) filterDel.magasin = req.magasinId;
+    const contrat = await Contrat.findOne(filterDel);
     if (!contrat) {
       return res.status(404).json({ success: false, message: "Contrat non trouvé" });
     }
@@ -212,7 +224,7 @@ export const deleteContrat = async (req, res) => {
       fs.unlinkSync(contrat.pdfPath);
     }
 
-    await Contrat.findByIdAndDelete(req.params.id);
+    await Contrat.findOneAndDelete(filterDel);
 
     res.json({ success: true, message: "Contrat supprimé" });
   } catch (e) {
@@ -223,7 +235,9 @@ export const deleteContrat = async (req, res) => {
 // ── ARCHIVE CONTRAT ───────────────────────────────────────
 export const archiveContrat = async (req, res) => {
   try {
-    const contrat = await Contrat.findById(req.params.id);
+    const filterArch = { _id: req.params.id };
+    if (req.magasinId) filterArch.magasin = req.magasinId;
+    const contrat = await Contrat.findOne(filterArch);
     if (!contrat) {
       return res.status(404).json({ success: false, message: "Contrat non trouvé" });
     }

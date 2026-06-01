@@ -9,6 +9,12 @@ const unitSchema = new mongoose.Schema(
       required: [true, "L'équipement est requis"],
       index: true,
     },
+    magasin: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Magasin", 
+      required: false, 
+      index: true 
+    },
     serial: {
       type: String,
       required: [true, "Le numéro de série est requis"],

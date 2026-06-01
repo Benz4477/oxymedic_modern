@@ -11,6 +11,7 @@ const ligneDevisSchema = new mongoose.Schema({
 }, { _id: false });
 
 const devisSchema = new mongoose.Schema({
+  magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
   reference:   { type: String, unique: true, uppercase: true },
   type:        { type: String, enum: ["devis", "proforma"], default: "devis" },
   status:      {

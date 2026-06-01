@@ -10,6 +10,7 @@ const ligneFactureSchema = new mongoose.Schema({
 }, { _id: false });
 
 const factureSchema = new mongoose.Schema({
+  magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
   // Référence auto-générée : FAC-2025-0001
   num: {
     type: String,

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const opportuniteSchema = new mongoose.Schema({
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
   client:     { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: true },
   equipement: { type: mongoose.Schema.Types.ObjectId, ref: "Equipement", default: null },
   stageId:    { type: Number, required: true, default: 1 },

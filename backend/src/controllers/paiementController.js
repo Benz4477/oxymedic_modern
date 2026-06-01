@@ -36,6 +36,7 @@ const syncFacture = async (factureId) => {
 const getAllPaiements = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.statut)   filter.statut   = req.query.statut;
     if (req.query.client)   filter.client   = req.query.client;
     if (req.query.commande) filter.commande = req.query.commande;
@@ -71,7 +72,9 @@ const getAllPaiements = async (req, res) => {
 // GET /api/paiements/:id
 const getPaiementById = async (req, res) => {
   try {
-    const paiement = await Paiement.findById(req.params.id).populate(POPULATE);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const paiement = await Paiement.findOne(filter).populate(POPULATE);
     if (!paiement) return res.status(404).json({ success: false, message: "Paiement non trouvé" });
     res.json({ success: true, data: paiement });
   } catch (error) {
@@ -102,6 +105,7 @@ const createPaiement = async (req, res) => {
       banque:            banque || "",
       referenceBancaire: referenceBancaire || "",
       note:              note   || "",
+      magasin:           req.magasinId || null,
     });
 
     // ── Sync facture si paiement direct ────────────────
@@ -124,11 +128,13 @@ const createPaiement = async (req, res) => {
 // PUT /api/paiements/:id
 const updatePaiement = async (req, res) => {
   try {
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
     const updates = { ...req.body };
     if (updates.datePaiement) updates.datePaiement = new Date(updates.datePaiement);
 
-    const paiement = await Paiement.findByIdAndUpdate(
-      req.params.id, updates, { new: true, runValidators: true }
+    const paiement = await Paiement.findOneAndUpdate(
+      filter, updates, { new: true, runValidators: true }
     ).populate(POPULATE);
 
     if (!paiement) return res.status(404).json({ success: false, message: "Paiement non trouvé" });
@@ -147,7 +153,9 @@ const updatePaiement = async (req, res) => {
 // PUT /api/paiements/:id/confirmer
 const confirmerPaiement = async (req, res) => {
   try {
-    const paiement = await Paiement.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const paiement = await Paiement.findOne(filter);
     if (!paiement) return res.status(404).json({ success: false, message: "Paiement non trouvé" });
 
     paiement.statut       = "paid";
@@ -169,7 +177,9 @@ const confirmerPaiement = async (req, res) => {
 // DELETE /api/paiements/:id
 const deletePaiement = async (req, res) => {
   try {
-    const paiement = await Paiement.findByIdAndDelete(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const paiement = await Paiement.findOneAndDelete(filter);
     if (!paiement) return res.status(404).json({ success: false, message: "Paiement non trouvé" });
     res.json({ success: true, message: "Paiement supprimé" });
   } catch (error) {

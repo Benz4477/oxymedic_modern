@@ -1,67 +1,95 @@
-import Client from "../models/Client.js";
-import Commande from "../models/Commande.js";
-import Paiement from "../models/Paiement.js";
-import Frais from "../models/Frais.js";
+import Client   from "../models/Client.js";
+import Commande  from "../models/Commande.js";
+import Paiement  from "../models/Paiement.js";
+import Frais     from "../models/Frais.js";
+import Facture   from "../models/Facture.js";
+import Livraison from "../models/Livraison.js";
 
 const fetchDashboardStats = async (req, res) => {
   try {
-    // Simuler les données du dashboard
-    const stats = {
-      totalClients: 156,
-      activeClients: 142,
-      totalOrders: 89,
-      pendingOrders: 12,
-      totalRevenue: 45680,
-      monthlyRevenue: 12450,
-      totalEquipment: 234,
-      availableEquipment: 189,
-      totalDeliveries: 67,
-      pendingDeliveries: 8,
-      totalPayments: 234,
-      pendingPayments: 15,
-      newClientsThisMonth: 18,
-      revenueGrowth: 12.5,
-      orderGrowth: 8.3,
-      clientRetention: 94.2,
+    const f = req.magasinId ? { magasin: req.magasinId } : {};
+
+    const [clients, commandes, paiements, factures, livraisons] = await Promise.all([
+      Client.find(f),
+      Commande.find(f),
+      Paiement.find(f),
+      Facture.find(f),
+      Livraison.find(f),
+    ]);
+
+    // Calcul du CA : paiements payés + factures payées
+    const totalRevenue = paiements
+      .filter(p => p.statut === "paid")
+      .reduce((s, p) => s + (p.montant || 0), 0);
+
+    // Mois en cours
+    const now       = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear  = now.getFullYear();
+    const isThisMonth = d => {
+      const date = new Date(d);
+      return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
     };
-    
-    res.json({
-      success: true,
-      data: stats
-    });
+
+    const monthlyRevenue = paiements
+      .filter(p => p.statut === "paid" && isThisMonth(p.datePaiement || p.createdAt))
+      .reduce((s, p) => s + (p.montant || 0), 0);
+
+    const newClientsThisMonth = clients.filter(c => isThisMonth(c.createdAt)).length;
+
+    const stats = {
+      totalClients:        clients.length,
+      activeClients:       clients.length,
+      totalOrders:         commandes.length,
+      pendingOrders:       commandes.filter(c => c.statut === "pending").length,
+      totalRevenue,
+      monthlyRevenue,
+      totalDeliveries:     livraisons.length,
+      pendingDeliveries:   livraisons.filter(l => l.statut === "pending").length,
+      totalPayments:       paiements.length,
+      pendingPayments:     paiements.filter(p => p.statut === "pending").length,
+      newClientsThisMonth,
+      revenueGrowth:       0,
+      orderGrowth:         0,
+      clientRetention:     clients.length > 0 ? 100 : 0,
+    };
+
+    res.json({ success: true, data: stats });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur lors de la récupération des statistiques' 
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des statistiques",
     });
   }
 };
 
 const fetchMonthlyDeliveryCosts = async (req, res) => {
   try {
-    // Simuler les données de frais de livraison mensuels
-    const monthlyCosts = [
-      { month: 'Janvier', cost: 2500 },
-      { month: 'Février', cost: 2800 },
-      { month: 'Mars', cost: 3200 },
-      { month: 'Avril', cost: 2900 },
-      { month: 'Mai', cost: 3100 },
-      { month: 'Juin', cost: 3400 },
-    ];
-    
-    res.json({
-      success: true,
-      data: monthlyCosts
+    const f = req.magasinId ? { magasin: req.magasinId } : {};
+    const fraisAll = await Frais.find(f);
+
+    // Grouper par mois
+    const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    const grouped = {};
+    fraisAll.forEach(fr => {
+      const d = new Date(fr.createdAt || fr.date || Date.now());
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      grouped[key] = (grouped[key] || { month: MONTHS[d.getMonth()], cost: 0 });
+      grouped[key].cost += fr.montant || 0;
     });
+
+    const monthlyCosts = Object.values(grouped).length
+      ? Object.values(grouped)
+      : MONTHS.slice(0, 6).map(m => ({ month: m, cost: 0 }));
+
+    res.json({ success: true, data: monthlyCosts });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erreur lors de la récupération des frais de livraison' 
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des frais de livraison",
     });
   }
 };
 
-export {
-  fetchDashboardStats,
-  fetchMonthlyDeliveryCosts,
-};
+export { fetchDashboardStats, fetchMonthlyDeliveryCosts };
+

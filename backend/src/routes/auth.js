@@ -9,7 +9,7 @@ const router = express.Router();
 router.post(
   "/login",
   [
-    body("email")
+    body("username")
       .trim()
       .notEmpty()
       .withMessage("L'identifiant est requis")

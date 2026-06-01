@@ -3,7 +3,7 @@ import Loyalty from '../models/Loyalty.js';
 export const getAllLoyalty = async (req, res) => {
   try {
     const loyalty = await Loyalty.find({}).sort({ createdAt: -1 });
-    res.json(loyalty);
+    res.json({ success: true, data: loyalty });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -13,7 +13,7 @@ export const getLoyaltyByClient = async (req, res) => {
   try {
     const loyalty = await Loyalty.findOne({ client: req.params.clientId });
     if (!loyalty) return res.status(404).json({ success: false, message: 'Carte non trouvée' });
-    res.json(loyalty);
+    res.json({ success: true, data: loyalty });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -75,10 +75,26 @@ export const deleteLoyaltyCard = async (req, res) => {
 
 export const getLoyaltyStats = async (req, res) => {
   try {
+    const cards = await Loyalty.find({});
+    let totalPoints = 0;
+    let totalSpent = 0;
+    let byTier = { bronze: 0, silver: 0, gold: 0, platinum: 0 };
+    
+    cards.forEach(card => {
+      totalPoints += card.points || 0;
+      totalSpent += card.totalSpent || 0;
+      const tier = card.tier || 'bronze';
+      byTier[tier] = (byTier[tier] || 0) + 1;
+    });
+
     res.json({
-      totalCards: await Loyalty.countDocuments(),
-      totalPointsEarned: 0,
-      totalPointsRedeemed: 0
+      success: true,
+      data: {
+        totalCards: cards.length,
+        totalPoints,
+        totalSpent,
+        byTier
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

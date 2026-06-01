@@ -12,12 +12,16 @@ const ContratsStats = ({ stats }) => {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {items.map((item) => (
-        <div key={item.label} className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-5 border-l-4 ${item.color}`}>
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${item.iconBg}`}>
-            <item.icon size={17} className={item.iconColor} />
+        <div key={item.label} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{item.label}</div>
+              <div className="text-2xl font-black text-slate-800 tracking-tight">{item.value}</div>
+            </div>
+            <div className={`p-3 rounded-2xl ${item.iconBg} group-hover:scale-110 transition-transform duration-300`}>
+              <item.icon size={20} className={item.iconColor} />
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{item.value}</div>
-          <div className="text-xs text-slate-400 mt-1">{item.label}</div>
         </div>
       ))}
     </div>

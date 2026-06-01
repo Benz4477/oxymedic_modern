@@ -12,6 +12,7 @@ const POPULATE = [
 const getAllCommandes = async (req, res) => {
   try {
     const filter = {};
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.statut) filter.statut = req.query.statut;
     if (req.query.client) filter.client = req.query.client;
     const commandes = await Commande.find(filter).populate(POPULATE).sort({ createdAt: -1 });
@@ -22,7 +23,9 @@ const getAllCommandes = async (req, res) => {
 // GET /api/commandes/:id
 const getCommandeById = async (req, res) => {
   try {
-    const commande = await Commande.findById(req.params.id).populate(POPULATE);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOne(filter).populate(POPULATE);
     if (!commande) return res.status(404).json({ success: false, message: "Commande non trouvée" });
     res.json({ success: true, data: commande });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -57,6 +60,7 @@ const createCommande = async (req, res) => {
     }
 
     const [commande] = await Commande.create([{
+      magasin: req.magasinId || null,
       client, equipement, unite: uniteId,
       dateDebut: new Date(dateDebut), dateFin: new Date(dateFin),
       modePaiement, montantHT: montantHT || 0, tauxTVA: tauxTVA || 20,
@@ -89,7 +93,9 @@ const updateCommande = async (req, res) => {
     if (updates.dateDebut) updates.dateDebut = new Date(updates.dateDebut);
     if (updates.dateFin)   updates.dateFin   = new Date(updates.dateFin);
     delete updates.unite;
-    const commande = await Commande.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).populate(POPULATE);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOneAndUpdate(filter, updates, { new: true, runValidators: true }).populate(POPULATE);
     if (!commande) return res.status(404).json({ success: false, message: "Commande non trouvée" });
     res.json({ success: true, data: commande, message: "Commande mise à jour" });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -100,7 +106,9 @@ const deleteCommande = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const commande = await Commande.findById(req.params.id).session(session);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOne(filter).session(session);
     if (!commande) { await session.abortTransaction(); return res.status(404).json({ success: false, message: "Commande non trouvée" }); }
     if (commande.unite) {
       await Unit.findByIdAndUpdate(commande.unite, { statut: "disponible", commandeActive: null, clientActuel: null }, { session });
@@ -121,7 +129,9 @@ const updateStatut = async (req, res) => {
     const STATUTS_VALIDES = ["pending", "active", "transit", "ended", "cancelled"];
     if (!STATUTS_VALIDES.includes(statut)) { await session.abortTransaction(); return res.status(400).json({ success: false, message: "Statut invalide" }); }
 
-    const commande = await Commande.findById(req.params.id).session(session);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOne(filter).session(session);
     if (!commande) { await session.abortTransaction(); return res.status(404).json({ success: false, message: "Commande non trouvée" }); }
 
     if (commande.unite) {
@@ -147,12 +157,15 @@ const updateStatut = async (req, res) => {
 // POST /api/commandes/:id/reconduire
 const reconduireCommande = async (req, res) => {
   try {
-    const commande = await Commande.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOne(filter);
     if (!commande) return res.status(404).json({ success: false, message: "Commande non trouvée" });
     const { type, dateFin, montantTTC, note } = req.body;
     if (!dateFin) return res.status(400).json({ success: false, message: "Date de fin requise" });
 
     const nouvelle = await Commande.create({
+      magasin: commande.magasin,
       client: commande.client, equipement: commande.equipement, unite: commande.unite,
       dateDebut: commande.dateFin, dateFin: new Date(dateFin),
       modePaiement: commande.modePaiement, montantTTC: montantTTC || commande.montantTTC,
@@ -174,7 +187,9 @@ const reconduireCommande = async (req, res) => {
 const saveBonEnlevement = async (req, res) => {
   try {
     const { livreur, vehicule, matricule } = req.body;
-    const commande = await Commande.findByIdAndUpdate(req.params.id, {
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOneAndUpdate(filter, {
       bonEnlevement: { livreur: livreur || "", vehicule: vehicule || "", matricule: matricule || "", date: new Date() }
     }, { new: true }).populate(POPULATE);
     if (!commande) return res.status(404).json({ success: false, message: "Commande non trouvée" });
@@ -186,7 +201,9 @@ const saveBonEnlevement = async (req, res) => {
 const saveBonRetour = async (req, res) => {
   try {
     const { recuperateur, vehicule, matricule, etat, observation } = req.body;
-    const commande = await Commande.findByIdAndUpdate(req.params.id, {
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const commande = await Commande.findOneAndUpdate(filter, {
       bonRetour: { recuperateur: recuperateur || "", vehicule: vehicule || "", matricule: matricule || "", etat: etat || "", observation: observation || "", date: new Date() }
     }, { new: true }).populate(POPULATE);
     if (!commande) return res.status(404).json({ success: false, message: "Commande non trouvée" });

@@ -2,7 +2,8 @@ import Client from "../models/Client.js";
 
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find().sort({ createdAt: -1 });
+    const filter = req.magasinId ? { magasin: req.magasinId } : {};
+    const clients = await Client.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: clients });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -11,7 +12,9 @@ const getAllClients = async (req, res) => {
 
 const getClientById = async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const client = await Client.findOne(filter);
     if (!client) return res.status(404).json({ success: false, message: "Client non trouvé" });
     res.json({ success: true, data: client });
   } catch (error) {
@@ -21,7 +24,9 @@ const getClientById = async (req, res) => {
 
 const createClient = async (req, res) => {
   try {
-    const client = new Client(req.body);
+    const clientData = { ...req.body };
+    if (req.magasinId) clientData.magasin = req.magasinId;
+    const client = new Client(clientData);
     await client.save();
     res.status(201).json({ success: true, data: client, message: "Client créé avec succès" });
   } catch (error) {
@@ -31,7 +36,9 @@ const createClient = async (req, res) => {
 
 const updateClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const client = await Client.findOneAndUpdate(filter, req.body, { new: true });
     if (!client) return res.status(404).json({ success: false, message: "Client non trouvé" });
     res.json({ success: true, data: client, message: "Client mis à jour" });
   } catch (error) {
@@ -41,7 +48,9 @@ const updateClient = async (req, res) => {
 
 const deleteClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndDelete(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const client = await Client.findOneAndDelete(filter);
     if (!client) return res.status(404).json({ success: false, message: "Client non trouvé" });
     res.json({ success: true, message: "Client supprimé avec succès" });
   } catch (error) {
@@ -52,7 +61,9 @@ const deleteClient = async (req, res) => {
 const addDocument = async (req, res) => {
   try {
     const { type } = req.body;
-    const client = await Client.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const client = await Client.findOne(filter);
     if (!client) return res.status(404).json({ success: false, message: "Client non trouvé" });
     if (!client.docs) client.docs = {};
     if (req.file) {

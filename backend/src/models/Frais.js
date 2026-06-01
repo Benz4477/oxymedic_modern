@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-const fraisSchema = new mongoose.Schema(
-  {
+const fraisSchema = new mongoose.Schema({
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
     id: {
       type: Number,
       required: true,

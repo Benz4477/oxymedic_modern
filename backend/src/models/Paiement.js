@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-const paiementSchema = new mongoose.Schema(
-  {
+const paiementSchema = new mongoose.Schema({
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: 'Magasin', required: false, index: true },
     // Référence auto-générée : TXN-2025-0001
     reference: {
       type: String,

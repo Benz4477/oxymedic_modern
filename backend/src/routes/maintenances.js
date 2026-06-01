@@ -5,12 +5,18 @@ import {
   createMaintenance,
   updateMaintenance,
   deleteMaintenance,
+  getStats,
+  addNote,
+  closeMaintenance,
 } from "../controllers/maintenanceController.js";
 
 const router = express.Router();
+router.get("/stats", getStats);
 router.get("/", getAllMaintenance);
 router.get("/:id", getMaintenanceById);
 router.post("/", createMaintenance);
 router.put("/:id", updateMaintenance);
 router.delete("/:id", deleteMaintenance);
+router.post("/:id/notes", addNote);
+router.put("/:id/close", closeMaintenance);
 export default router;

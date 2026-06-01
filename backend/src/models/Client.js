@@ -7,6 +7,12 @@ const clientSchema = new mongoose.Schema(
       required: true,
       trim: true
      },
+    magasin: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Magasin", 
+      required: false, 
+      index: true 
+    },
 
     nom: { 
       type: String,

@@ -2,10 +2,8 @@ import Livraison from '../models/Livraison.js';
 
 export const getAllLivraisons = async (req, res) => {
   try {
-    const livraisons = await Livraison.find({}).sort({ createdAt: -1 })
-      .populate('commande', 'reference')
-      .populate('client', 'prenom nom tel')
-      .populate('livreur', 'nom tel');
+    const filter = req.magasinId ? { magasin: req.magasinId } : {};
+    const livraisons = await Livraison.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: livraisons });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -14,10 +12,9 @@ export const getAllLivraisons = async (req, res) => {
 
 export const getLivraisonById = async (req, res) => {
   try {
-    const livraison = await Livraison.findById(req.params.id)
-      .populate('commande', 'reference')
-      .populate('client', 'prenom nom tel')
-      .populate('livreur', 'nom tel');
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const livraison = await Livraison.findOne(filter);
     if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
     res.json({ success: true, data: livraison });
   } catch (error) {
@@ -27,7 +24,9 @@ export const getLivraisonById = async (req, res) => {
 
 export const createLivraison = async (req, res) => {
   try {
-    const livraison = new Livraison(req.body);
+    const livraisonData = { ...req.body };
+    if (req.magasinId) livraisonData.magasin = req.magasinId;
+    const livraison = new Livraison(livraisonData);
     const newLivraison = await livraison.save();
     res.status(201).json({ success: true, data: newLivraison });
   } catch (error) {
@@ -37,7 +36,9 @@ export const createLivraison = async (req, res) => {
 
 export const updateLivraison = async (req, res) => {
   try {
-    const livraison = await Livraison.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const livraison = await Livraison.findOneAndUpdate(filter, req.body, { new: true });
     if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
     res.json({ success: true, data: livraison });
   } catch (error) {
@@ -47,7 +48,9 @@ export const updateLivraison = async (req, res) => {
 
 export const deleteLivraison = async (req, res) => {
   try {
-    const livraison = await Livraison.findByIdAndDelete(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const livraison = await Livraison.findOneAndDelete(filter);
     if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
     res.json({ success: true, message: 'Livraison supprimée' });
   } catch (error) {

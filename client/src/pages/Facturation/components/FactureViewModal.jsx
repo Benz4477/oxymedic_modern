@@ -71,19 +71,19 @@ const FactureViewModal = ({ isOpen, onClose, facture, societe = {} }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
 
         {/* Header modal */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 bg-white/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-2">
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition">
-              <Printer size={13} /> Imprimer
+          <div className="flex items-center gap-3">
+            <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95">
+              <Printer size={14} /> Imprimer
             </button>
-            <button onClick={onClose} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-              <X size={14} />
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 hover:rotate-90 transition-all">
+              <X size={16} />
             </button>
           </div>
         </div>

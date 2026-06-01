@@ -20,6 +20,26 @@ export const protect = async (req, res, next) => {
     if (req.user.status !== "active") {
       return res.status(401).json({ success: false, message: "Compte désactivé" });
     }
+
+    // ── Logique Multi-Magasin (Isolation des données) ──
+    const requestedMagasinId = req.headers["x-magasin-id"];
+
+    if (req.user.role === "superadmin") {
+      // Super-admin : accès à un magasin spécifique ou vue globale (null)
+      req.magasinId = requestedMagasinId || null;
+    } else if (req.user.role === "assistant") {
+      // Assistant : accès restreint à ses magasins assignés
+      const assigned = (req.user.assignedMagasins || []).map(id => id.toString());
+      if (requestedMagasinId && assigned.includes(requestedMagasinId)) {
+        req.magasinId = requestedMagasinId;
+      } else {
+        req.magasinId = assigned[0] || null;
+      }
+    } else {
+      // Chef / Employé : strictement restreint à leur magasin
+      req.magasinId = req.user.magasin || null;
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: "Token invalide" });

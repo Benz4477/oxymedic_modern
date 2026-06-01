@@ -20,6 +20,7 @@ const historiqueSchema = new mongoose.Schema({
 const commandeSchema = new mongoose.Schema(
   {
     reference: { type: String, unique: true },
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: "Magasin", required: false, index: true },
 
     client:     { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: [true, "Le client est requis"], index: true },
     equipement: { type: mongoose.Schema.Types.ObjectId, ref: "Equipement", required: [true, "L'équipement est requis"] },

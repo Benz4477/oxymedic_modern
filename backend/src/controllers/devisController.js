@@ -21,6 +21,7 @@ const mapMode = (mode) => {
 const getAllDevis = async (req, res) => {
   try {
     const filter = { archived: false };
+    if (req.magasinId) filter.magasin = req.magasinId;
     if (req.query.status) filter.status = req.query.status;
     if (req.query.client) filter.client = req.query.client;
 
@@ -46,7 +47,9 @@ const getAllDevis = async (req, res) => {
 // GET /api/devis/stats
 const getDevisStats = async (req, res) => {
   try {
-    const devis = await Devis.find({ archived: false });
+    const filter = { archived: false };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.find(filter);
     res.json({
       success: true,
       data: {
@@ -70,7 +73,9 @@ const getDevisStats = async (req, res) => {
 // GET /api/devis/:id
 const getDevisById = async (req, res) => {
   try {
-    const devis = await Devis.findById(req.params.id).populate(POPULATE);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOne(filter).populate(POPULATE);
     if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
     res.json({ success: true, data: devis });
   } catch (error) {
@@ -102,6 +107,7 @@ const createDevis = async (req, res) => {
       ...rest, client, lignes,
       clientNom: nom || "", clientEmail: email || "", clientAdresse: adresse || "",
       dateValidite: new Date(dateValidite),
+      magasin: req.magasinId || null,
       createdBy: req.user?.name || "Admin",
     });
 
@@ -118,7 +124,9 @@ const createDevis = async (req, res) => {
 // PUT /api/devis/:id
 const updateDevis = async (req, res) => {
   try {
-    const devis = await Devis.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOne(filter);
     if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
     if (["converted"].includes(devis.status)) {
       return res.status(400).json({ success: false, message: "Impossible de modifier un devis converti" });
@@ -127,7 +135,7 @@ const updateDevis = async (req, res) => {
     const updates = { ...req.body };
     if (updates.dateValidite) updates.dateValidite = new Date(updates.dateValidite);
 
-    const updated = await Devis.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).populate(POPULATE);
+    const updated = await Devis.findOneAndUpdate(filter, updates, { new: true, runValidators: true }).populate(POPULATE);
     res.json({ success: true, data: updated, message: "Devis mis à jour" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -137,7 +145,9 @@ const updateDevis = async (req, res) => {
 // DELETE /api/devis/:id
 const deleteDevis = async (req, res) => {
   try {
-    const devis = await Devis.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOne(filter);
     if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
 
     if (devis.status === "accepted") {
@@ -162,7 +172,9 @@ const deleteDevis = async (req, res) => {
 // PUT /api/devis/:id/send
 const sendDevis = async (req, res) => {
   try {
-    const devis = await Devis.findByIdAndUpdate(req.params.id,
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOneAndUpdate(filter,
       { status: "sent", dateEnvoi: new Date() },
       { new: true }
     ).populate(POPULATE);
@@ -176,7 +188,9 @@ const sendDevis = async (req, res) => {
 // PUT /api/devis/:id/accept
 const acceptDevis = async (req, res) => {
   try {
-    const devis = await Devis.findByIdAndUpdate(req.params.id,
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOneAndUpdate(filter,
       { status: "accepted", dateAcceptation: new Date() },
       { new: true }
     ).populate(POPULATE);
@@ -190,7 +204,9 @@ const acceptDevis = async (req, res) => {
 // PUT /api/devis/:id/reject
 const rejectDevis = async (req, res) => {
   try {
-    const devis = await Devis.findByIdAndUpdate(req.params.id,
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOneAndUpdate(filter,
       { status: "rejected" },
       { new: true }
     ).populate(POPULATE);
@@ -204,7 +220,9 @@ const rejectDevis = async (req, res) => {
 // POST /api/devis/:id/convert — Convertit en vraie Commande MongoDB
 const convertDevis = async (req, res) => {
   try {
-    const devis = await Devis.findById(req.params.id).populate("client");
+    const filter = { _id: req.params.id };
+    if (req.magasinId) filter.magasin = req.magasinId;
+    const devis = await Devis.findOne(filter).populate("client");
     if (!devis) return res.status(404).json({ success: false, message: "Devis non trouvé" });
     if (devis.status !== "accepted") {
       return res.status(400).json({ success: false, message: "Seuls les devis acceptés peuvent être convertis" });
@@ -228,6 +246,7 @@ const convertDevis = async (req, res) => {
       dateDebut:    dateDebut  ? new Date(dateDebut)  : new Date(),
       dateFin:      dateFin    ? new Date(dateFin)    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       modePaiement: mapMode(modePaiement || "espece"),
+      magasin:      req.magasinId || null,
       montantHT:    devis.montantHT,
       montantTVA:   devis.montantTVA,
       montantTTC:   devis.montantTTC,
@@ -242,7 +261,7 @@ const convertDevis = async (req, res) => {
       montant: commande.montantTTC 
     });
 
-    const updatedDevis = await Devis.findByIdAndUpdate(req.params.id, {
+    const updatedDevis = await Devis.findOneAndUpdate(filter, {
       status:   "converted",
       commande: commande._id,
     }, { new: true }).populate(POPULATE);

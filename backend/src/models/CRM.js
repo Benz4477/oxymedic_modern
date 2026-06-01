@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-// ── Interaction (appel, email, visite, etc.) ─────────────
 const interactionSchema = new mongoose.Schema({
+  magasin:   { type: mongoose.Schema.Types.ObjectId, ref: "Magasin", required: false, index: true },
   client:    { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: true },
   type:      { type: String, enum: ["call", "email", "visit", "note", "sms", "whatsapp"], default: "note" },
   titre:     { type: String, required: true, trim: true },
@@ -12,6 +12,7 @@ const interactionSchema = new mongoose.Schema({
 
 // ── Tâche ────────────────────────────────────────────────
 const tacheSchema = new mongoose.Schema({
+  magasin:    { type: mongoose.Schema.Types.ObjectId, ref: "Magasin", required: false, index: true },
   titre:      { type: String, required: true, trim: true },
   client:     { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
   type:       { type: String, enum: ["call", "email", "delivery", "contract", "other"], default: "other" },
