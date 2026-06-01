@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Magasin from "../models/Magasin.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 

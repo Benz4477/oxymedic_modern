@@ -43,6 +43,9 @@ const userSchema = new mongoose.Schema(
       utilisateurs: { type: Boolean, default: false },
     },
 
+    magasin: { type: mongoose.Schema.Types.ObjectId, ref: "Magasin", default: null },
+    assignedMagasins: [{ type: mongoose.Schema.Types.ObjectId, ref: "Magasin" }],
+
     status:    { type: String, enum: ["active", "inactive"], default: "active" },
     system:    { type: Boolean, default: false },
     lastLogin: { type: Date, default: null },
