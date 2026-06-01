@@ -1,9 +1,17 @@
 import mongoose from "mongoose";
 
+const historySchema = new mongoose.Schema({
+  type:   { type: String, enum: ["earn", "redeem"], required: true },
+  points: { type: Number, required: true },
+  reason: { type: String, default: "" },
+  date:   { type: Date,   default: Date.now },
+}, { _id: false });
+
 const loyaltySchema = new mongoose.Schema(
   {
-    clientId: {
-      type: Number,
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
       required: true,
       unique: true,
     },
@@ -26,20 +34,10 @@ const loyaltySchema = new mongoose.Schema(
     },
     cardNum: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
     },
-    createdAt: {
-      type: String,
-      required: true,
-    },
-    history: [
-      {
-        date: String,
-        action: String,
-        points: Number,
-      },
-    ],
+    history: [historySchema],
   },
   {
     timestamps: true,

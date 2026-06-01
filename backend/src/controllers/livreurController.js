@@ -1,75 +1,50 @@
-const Livreur = require('../models/Livreur');
+import Livreur from '../models/Livreur.js';
 
-// GET tous les livreurs
-const getAllLivreurs = async (req, res) => {
+export const getAllLivreurs = async (req, res) => {
   try {
-    const livreurs = await Livreur.find({}).sort({ id: 1 });
-    res.json(livreurs);
+    const livreurs = await Livreur.find({}).sort({ nom: 1 });
+    res.json({ success: true, data: livreurs });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// GET un livreur par ID
-const getLivreurById = async (req, res) => {
+export const getLivreurById = async (req, res) => {
   try {
-    const livreur = await Livreur.findOne({ id: req.params.id });
-    if (!livreur) {
-      return res.status(404).json({ message: 'Livreur non trouvé' });
-    }
-    res.json(livreur);
+    const livreur = await Livreur.findById(req.params.id);
+    if (!livreur) return res.status(404).json({ success: false, message: 'Livreur non trouvé' });
+    res.json({ success: true, data: livreur });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// POST créer un livreur
-const createLivreur = async (req, res) => {
+export const createLivreur = async (req, res) => {
   try {
-    const lastLivreur = await Livreur.findOne().sort({ id: -1 });
-    const newId = lastLivreur ? lastLivreur.id + 1 : 1;
-    
-    const livreur = new Livreur({
-      ...req.body,
-      id: newId
-    });
+    const livreur = new Livreur(req.body);
     const newLivreur = await livreur.save();
-    res.status(201).json(newLivreur);
+    res.status(201).json({ success: true, data: newLivreur });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// PUT mettre à jour un livreur
-const updateLivreur = async (req, res) => {
+export const updateLivreur = async (req, res) => {
   try {
-    const livreur = await Livreur.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
-    if (!livreur) {
-      return res.status(404).json({ message: 'Livreur non trouvé' });
-    }
-    res.json(livreur);
+    const livreur = await Livreur.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!livreur) return res.status(404).json({ success: false, message: 'Livreur non trouvé' });
+    res.json({ success: true, data: livreur });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// DELETE supprimer un livreur
-const deleteLivreur = async (req, res) => {
+export const deleteLivreur = async (req, res) => {
   try {
-    const livreur = await Livreur.findOneAndDelete({ id: req.params.id });
-    if (!livreur) {
-      return res.status(404).json({ message: 'Livreur non trouvé' });
-    }
-    res.json({ message: 'Livreur supprimé avec succès' });
+    const livreur = await Livreur.findByIdAndDelete(req.params.id);
+    if (!livreur) return res.status(404).json({ success: false, message: 'Livreur non trouvé' });
+    res.json({ success: true, message: 'Livreur supprimé' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
-};
-
-module.exports = {
-  getAllLivreurs,
-  getLivreurById,
-  createLivreur,
-  updateLivreur,
-  deleteLivreur
 };

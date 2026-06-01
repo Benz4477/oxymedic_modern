@@ -1,54 +1,56 @@
-const Livraison = require('../models/Livraison');
+import Livraison from '../models/Livraison.js';
 
-const getAllLivraisons = async (req, res) => {
+export const getAllLivraisons = async (req, res) => {
   try {
-    const livraisons = await Livraison.find({}).sort({ id: 1 });
-    res.json(livraisons);
+    const livraisons = await Livraison.find({}).sort({ createdAt: -1 })
+      .populate('commande', 'reference')
+      .populate('client', 'prenom nom tel')
+      .populate('livreur', 'nom tel');
+    res.json({ success: true, data: livraisons });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const getLivraisonById = async (req, res) => {
+export const getLivraisonById = async (req, res) => {
   try {
-    const livraison = await Livraison.findOne({ id: req.params.id });
-    if (!livraison) return res.status(404).json({ message: 'Livraison non trouvée' });
-    res.json(livraison);
+    const livraison = await Livraison.findById(req.params.id)
+      .populate('commande', 'reference')
+      .populate('client', 'prenom nom tel')
+      .populate('livreur', 'nom tel');
+    if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
+    res.json({ success: true, data: livraison });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const createLivraison = async (req, res) => {
+export const createLivraison = async (req, res) => {
   try {
-    const lastLivraison = await Livraison.findOne().sort({ id: -1 });
-    const newId = lastLivraison ? lastLivraison.id + 1 : 1;
-    const livraison = new Livraison({ ...req.body, id: newId });
+    const livraison = new Livraison(req.body);
     const newLivraison = await livraison.save();
-    res.status(201).json(newLivraison);
+    res.status(201).json({ success: true, data: newLivraison });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-const updateLivraison = async (req, res) => {
+export const updateLivraison = async (req, res) => {
   try {
-    const livraison = await Livraison.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
-    if (!livraison) return res.status(404).json({ message: 'Livraison non trouvée' });
-    res.json(livraison);
+    const livraison = await Livraison.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
+    res.json({ success: true, data: livraison });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-const deleteLivraison = async (req, res) => {
+export const deleteLivraison = async (req, res) => {
   try {
-    const livraison = await Livraison.findOneAndDelete({ id: req.params.id });
-    if (!livraison) return res.status(404).json({ message: 'Livraison non trouvée' });
-    res.json({ message: 'Livraison supprimée avec succès' });
+    const livraison = await Livraison.findByIdAndDelete(req.params.id);
+    if (!livraison) return res.status(404).json({ success: false, message: 'Livraison non trouvée' });
+    res.json({ success: true, message: 'Livraison supprimée' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
-
-module.exports = { getAllLivraisons, getLivraisonById, createLivraison, updateLivraison, deleteLivraison };

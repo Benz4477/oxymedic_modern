@@ -1,33 +1,15 @@
-import express from 'express'
-import { protect, authorize } from '../middleware/auth.js'
+import express from 'express';
+import { protect, authorize } from '../middleware/auth.js';
+import { getAllLivreurs, getLivreurById, createLivreur, updateLivreur, deleteLivreur } from '../controllers/livreurController.js';
 
-const router = express.Router()
+const router = express.Router();
 
-// @route   GET /api/livreurs
-// @desc    Récupérer tous les livreurs
-// @access  Private
-router.get('/', protect, authorize('admin', 'livreur'), async (req, res) => {
-  try {
-    // Simulation de données pour le test
-    const livreurs = [
-      {
-        id: 1,
-        nom: 'Ahmed Benali',
-        tel: '0612345678',
-        statut: 'actif'
-      }
-    ]
-    
-    res.json({
-      success: true,
-      data: livreurs
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des livreurs'
-    })
-  }
-})
+router.use(protect);
 
-export default router
+router.get('/', authorize('superadmin', 'admin', 'employe', 'livreur'), getAllLivreurs);
+router.get('/:id', authorize('superadmin', 'admin', 'employe', 'livreur'), getLivreurById);
+router.post('/', authorize('superadmin', 'admin'), createLivreur);
+router.put('/:id', authorize('superadmin', 'admin'), updateLivreur);
+router.delete('/:id', authorize('superadmin', 'admin'), deleteLivreur);
+
+export default router;
