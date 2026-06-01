@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
@@ -119,9 +119,18 @@ app.use("/api/crm",        crmRoutes);
 app.use("/api/contrats",   contratRoutes);
 app.use("/api/pipeline",   pipelineRoutes);
 
-
-
-// ── Health check ───────────────────────────────────────────
+// Nouvelles routes ajoutées
+app.use("/api/cautions",      cautionRoutes);
+app.use("/api/livraisons",    livraisonsRoutes);
+app.use("/api/livreurs",      livreursRoutes);
+app.use("/api/consommables",  consommablesRoutes);
+app.use("/api/ventes-consos", ventesConsosRoutes);
+app.use("/api/sav",           savRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/transferts",    transfertsRoutes);
+app.use("/api/loyalty",       loyaltyRoutes);
+app.use("/api/magasins",      magasinsRoutes);
+app.use("/api/reservations",  reservationRoutes);// ── Health check ───────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
