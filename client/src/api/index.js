@@ -11,10 +11,17 @@ baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",  timeout: 
 // Intercepteur pour ajouter le token d'authentification
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Ajouter également le magasin actif si présent
+    const activeMagasinId = sessionStorage.getItem("activeMagasinId");
+    if (activeMagasinId) {
+      config.headers["X-Magasin-Id"] = activeMagasinId;
+    }
+    
     return config;
   },
   (error) => {
@@ -30,8 +37,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expiré ou invalide
-      localStorage.removeItem("token");
-      window.location.href = "/login";
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("activeMagasinId");
+      // Rediriger vers l'accueil (connexion)
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
