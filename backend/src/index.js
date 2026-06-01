@@ -34,6 +34,16 @@ import usersRoutes       from "./routes/users.js";
 import contratRoutes     from "./routes/contratRoutes.js";
 import pipelineRoutes    from "./routes/pipelineRoutes.js";
 
+// Import des routes manquantes
+import cautionRoutes from "./routes/cautions.js";
+import consommablesRoutes from "./routes/consommables.js";
+import ventesConsosRoutes from "./routes/ventes-consos.js";
+import savRoutes from "./routes/sav.js";
+import notificationRoutes from "./routes/notifications.js";
+import transfertsRoutes from "./routes/transferts.js";
+import loyaltyRoutes from "./routes/loyalty.js";
+import magasinsRoutes from "./routes/magasins.js";
+import reservationRoutes from "./routes/reservations.js";
 dotenv.config();
 connectDB();
 
@@ -121,8 +131,8 @@ app.use("/api/pipeline",   pipelineRoutes);
 
 // Nouvelles routes ajoutées
 app.use("/api/cautions",      cautionRoutes);
-app.use("/api/livraisons",    livraisonsRoutes);
-app.use("/api/livreurs",      livreursRoutes);
+app.use("/api/livraisons",    livraisonRoutes);
+app.use("/api/livreurs",      livreurRoutes);
 app.use("/api/consommables",  consommablesRoutes);
 app.use("/api/ventes-consos", ventesConsosRoutes);
 app.use("/api/sav",           savRoutes);
