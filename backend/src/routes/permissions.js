@@ -6,8 +6,11 @@ import {
   updatePermission,
   deletePermission,
 } from "../controllers/permissionController.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(protect);
+
 router.get("/", getAllPermissions);
 router.get("/:module", getPermissionByModule);
 router.post("/", createPermission);

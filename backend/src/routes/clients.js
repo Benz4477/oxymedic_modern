@@ -8,8 +8,11 @@ import {
   addDocument,
 } from "../controllers/clientController.js";
 import { uploadSingle, handleUploadError } from "../middleware/upload.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
+
+router.use(protect);
 
 // Routes principales pour les clients
 router.get("/", getAllClients);

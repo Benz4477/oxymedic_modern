@@ -12,8 +12,11 @@ import {
   uploadEquipementPhoto as uploadMiddleware,
   handleUploadError,
 } from "../middleware/equipementUpload.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
+
+router.use(protect);
 
 // ── Routes CRUD ──
 router.get("/", getAllEquipements);

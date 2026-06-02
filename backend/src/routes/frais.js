@@ -7,6 +7,9 @@ import {
   updateFrais,
   deleteFrais,
 } from "../controllers/fraisController.js";
+import { protect } from "../middleware/auth.js";
+
+router.use(protect);
 
 router.get("/", getAllFrais);
 router.get("/:id", getFraisById);

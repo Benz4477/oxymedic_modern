@@ -29,49 +29,40 @@ const login = async (req, res) => {
 
 
 
-    // Trouver l'utilisateur avec status='active'
-    const user = await User.findOne({
+    // Trouver tous les utilisateurs correspondants (pour gérer les emails en double)
+    const users = await User.find({
       $or: [{ username: username }, { email: username }],
       status: "active",
     }).select("+password");
 
-
-
-    if (!user) {
-
+    if (!users || users.length === 0) {
       return res.status(401).json({
-
         success: false,
-
         message: "Identifiant ou mot de passe incorrect",
-
       });
-
     }
 
-
-
-    // Vérifier password avec bcrypt (plus sécurisé)
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-
-      return res.status(401).json({
-
-        success: false,
-
-        message: "Identifiant ou mot de passe incorrect",
-
-      });
-
+    // Vérifier password avec bcrypt pour trouver le bon compte parmi ceux retournés
+    let matchedUser = null;
+    for (const u of users) {
+      const isMatch = await bcrypt.compare(password, u.password);
+      if (isMatch) {
+        matchedUser = u;
+        break;
+      }
     }
 
+    if (!matchedUser) {
+      return res.status(401).json({
+        success: false,
+        message: "Identifiant ou mot de passe incorrect",
+      });
+    }
 
+    const user = matchedUser;
 
     // Mettre à jour lastLogin
-
-    user.lastLogin = new Date().toLocaleDateString("fr-FR");
+    user.lastLogin = new Date();
 
     await user.save();
 

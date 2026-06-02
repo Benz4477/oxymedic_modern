@@ -2,7 +2,7 @@ import api from "../api";
 
 const userService = {
   getAll: async () => {
-    const res = await api.get("/users/active");
+    const res = await api.get("/users");
     return res.data.data;
   },
 

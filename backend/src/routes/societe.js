@@ -4,7 +4,10 @@ import {
   updateSociete,
 } from '../controllers/societeController.js'
 
+import { protect } from '../middleware/auth.js'
+
 const router = express.Router()
+router.use(protect)
 
 // Routes pour les informations de la société
 router.get('/', getSociete)

@@ -9,8 +9,11 @@ import {
   addNote,
   closeMaintenance,
 } from "../controllers/maintenanceController.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(protect);
+
 router.get("/stats", getStats);
 router.get("/", getAllMaintenance);
 router.get("/:id", getMaintenanceById);
